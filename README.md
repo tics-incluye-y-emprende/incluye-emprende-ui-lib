@@ -1,11 +1,11 @@
-# incluye-emprende-ui
+# @incluye-y-emprende/ui
 
 React component library for Incluye y Emprende, documented with Storybook.
 
 ## Installation
 
 ```bash
-npm install incluye-emprende-ui
+npm install @incluye-y-emprende/ui
 ```
 
 `react` and `react-dom` (>= 18) are peer dependencies.
@@ -13,8 +13,8 @@ npm install incluye-emprende-ui
 ## Usage
 
 ```tsx
-import { Button } from 'incluye-emprende-ui';
-import 'incluye-emprende-ui/styles.css'; // once, at your app's entry point
+import { Button } from '@incluye-y-emprende/ui';
+import '@incluye-y-emprende/ui/styles.css'; // once, at your app's entry point
 
 export function App() {
   return <Button variant="primary" onClick={() => alert('Hi!')}>Click me</Button>;

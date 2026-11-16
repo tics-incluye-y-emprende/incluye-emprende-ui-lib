@@ -1,8 +1,16 @@
 {
-  "name": "incluye-emprende-ui",
+  "name": "@incluye-y-emprende/ui",
   "version": "0.1.0",
   "description": "React component library for Incluye y Emprende",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tics-incluye-y-emprende/incluye-emprende-ui-lib.git"
+  },
+  "homepage": "https://github.com/tics-incluye-y-emprende/incluye-emprende-ui-lib#readme",
+  "bugs": {
+    "url": "https://github.com/tics-incluye-y-emprende/incluye-emprende-ui-lib/issues"
+  },
   "type": "module",
   "sideEffects": [
     "**/*.css"
