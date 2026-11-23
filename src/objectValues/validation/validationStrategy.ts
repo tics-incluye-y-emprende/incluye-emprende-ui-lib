@@ -1,115 +1,139 @@
 import {
-  ValidationProps,
+  ValidationRules,
   ValidationConfig,
   ValidationI,
   ValidationType,
 } from "./models";
+import { RawValue } from "../formControl/models";
 
-abstract class ValidationStrategy implements ValidationI {
-  constructor(private config: ValidationConfig) {}
+/** Base class for one validation rule. Each subclass knows how to evaluate one native validation. */
+abstract class ValidationStrategy<PropValue = unknown> implements ValidationI {
+  /** Receives the rule's value and its optional error message. */
+  constructor(protected readonly config: ValidationConfig<PropValue>) {}
 
-  abstract validate(): boolean;
+  /** Returns true when the raw value satisfies the rule. */
+  abstract validate(rawValue: RawValue): boolean;
+  /** Kind of error, defined by each subclass. */
   protected abstract errorTypeName: ValidationType;
+  /** Public access to the kind of error. */
   public get errorType(): ValidationType {
     return this.errorTypeName;
   }
 
-  public get validationValue(): boolean {
-    return this.validate();
-  }
-
+  /** The configured message. */
   public get errorMessage(): string | undefined {
     return;
   }
 }
 
-class RequiredValidationStrategy extends ValidationStrategy {
+/** `required`: the field must have a value. */
+class RequiredValidationStrategy extends ValidationStrategy<
+  ValidationRules["required"]
+> {
   errorTypeName: ValidationType = "valueMissing";
-  constructor(config: ValidationConfig<"required">) {
-    super(config);
-  }
 
-  validate(): boolean {
+  /**
+   * Passes when the field has a value, or when required is false.
+   * Missing means undefined or the empty value of its kind of field: "" for text-like
+   * inputs, textarea and select; nothing checked or selected (undefined or []) for
+   * radio, checkbox and multiple select.
+   */
+  validate(_rawValue: RawValue): boolean {
     return false;
   }
 }
 
-class MinLengthValidationStrategy extends ValidationStrategy {
+/** `minLength`: the text must have at least that many characters. */
+class MinLengthValidationStrategy extends ValidationStrategy<
+  ValidationRules["minLength"]
+> {
   errorTypeName: ValidationType = "tooShort";
-  constructor(config: ValidationConfig) {
-    super(config);
-  }
 
-  validate(): boolean {
+  /**
+   * Passes when the text is long enough.
+   * ASSUMPTION: an empty optional field passes, as in native forms.
+   */
+  validate(_rawValue: RawValue): boolean {
     return false;
   }
 }
 
-class MaxLengthValidationStrategy extends ValidationStrategy {
+/** `maxLength`: the text must not exceed that many characters. */
+class MaxLengthValidationStrategy extends ValidationStrategy<
+  ValidationRules["maxLength"]
+> {
   errorTypeName: ValidationType = "tooLong";
-  constructor(config: ValidationConfig) {
-    super(config);
-  }
 
-  validate(): boolean {
+  /** Passes when the text is not too long. */
+  validate(_rawValue: RawValue): boolean {
     return false;
   }
 }
 
-class PatternValidationStrategy extends ValidationStrategy {
+/** `pattern`: the text must match the regular expression. */
+class PatternValidationStrategy extends ValidationStrategy<
+  ValidationRules["pattern"]
+> {
   errorTypeName: ValidationType = "patternMismatch";
-  constructor(config: ValidationConfig) {
-    super(config);
-  }
 
-  validate(): boolean {
+  /**
+   * Passes when the whole text matches.
+   * ASSUMPTION: full match, and empty passes, as in native forms.
+   */
+  validate(_rawValue: RawValue): boolean {
     return false;
   }
 }
 
-class CustomValidationStrategy extends ValidationStrategy {
+/** Rule written by the library's consumer, like setCustomValidity in native inputs. */
+class CustomValidationStrategy extends ValidationStrategy<
+  ValidationRules["custom"]
+> {
   errorTypeName: ValidationType = "customError";
-  constructor(config: ValidationConfig) {
-    super(config);
-  }
 
-  validate(): boolean {
+  /** Runs the consumer's custom check. */
+  validate(_rawValue: RawValue): boolean {
     return false;
   }
 }
 
-class MaxValueValidationStrategy extends ValidationStrategy {
+/** `max`: the value must not be greater than the limit. */
+class MaxValueValidationStrategy extends ValidationStrategy<
+  ValidationRules["max"]
+> {
   errorTypeName: ValidationType = "rangeOverflow";
-  constructor(config: ValidationConfig) {
-    super(config);
-  }
 
-  validate(): boolean {
+  /** Passes when value <= max, for both numbers and dates. */
+  validate(_rawValue: RawValue): boolean {
     return false;
   }
 }
 
-class MinValueValidationStrategy extends ValidationStrategy {
+/** `min`: the value must not be less than the limit. */
+class MinValueValidationStrategy extends ValidationStrategy<
+  ValidationRules["min"]
+> {
   errorTypeName: ValidationType = "rangeUnderflow";
-  constructor(config: ValidationConfig) {
-    super(config);
-  }
 
-  validate(): boolean {
+  /** Passes when value >= min, for both numbers and dates. */
+  validate(_rawValue: RawValue): boolean {
     return false;
   }
 }
 
-const validationStrategiesPerProp: Record<
-  keyof ValidationProps,
-  typeof ValidationStrategy
-> = {
+/** Maps each validation prop to the strategy class that evaluates it, so the Validator can create them from the config. */
+const validationStrategiesPerProp: {
+  [P in keyof ValidationRules]: new (
+    config: ValidationConfig<ValidationRules[P]>,
+  ) => ValidationI;
+} = {
   required: RequiredValidationStrategy,
   minLength: MinLengthValidationStrategy,
   maxLength: MaxLengthValidationStrategy,
   pattern: PatternValidationStrategy,
   max: MaxValueValidationStrategy,
   min: MinValueValidationStrategy,
+  custom: CustomValidationStrategy,
 };
 
 export {

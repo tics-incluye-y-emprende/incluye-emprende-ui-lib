@@ -1,32 +1,39 @@
+import { RawValue } from "../formControl/models";
 import {
-  ValidationProps,
   ValidationsState,
   ValidationConfigI,
+  ValidatorI,
   ErrorState,
 } from "./models";
 
-export class Validator implements ValidationsState {
-  constructor(private config: ValidationConfigI) {}
+/** Temporary placeholder state, to be removed with the implementation. */
+const mockErrorState: ErrorState = {
+  type: "valueMissing",
+  message: "This field is required.",
+  isValid: false,
+};
 
-  // If validation "required" is not present in the config, it is considered valid by default.
-  public get isValid(): boolean {
-    return false;
-  }
+/** Runs all the rules configured for one field and summarizes the results. It holds no value. */
+export class Validator implements ValidatorI {
+  /** Receives the rules to apply to the field. */
+  constructor(private readonly config: ValidationConfigI) {}
 
-  // If a component prop is not present in the config, it is considered valid by default.
-  public get errorsState(): Record<keyof ValidationProps, ErrorState> {
-    const mockErrorState: ErrorState = {
-      type: "valueMissing",
-      message: "This field is required.",
-      isValid: false,
-    };
+  /**
+   * Evaluates the raw value.
+   * If a rule, including "required", is not present in the config, it is considered valid by default.
+   */
+  public validate(_rawValue: RawValue): ValidationsState {
     return {
-      required: mockErrorState,
-      minLength: mockErrorState,
-      maxLength: mockErrorState,
-      pattern: mockErrorState,
-      max: mockErrorState,
-      min: mockErrorState,
+      isValid: false,
+      errorsState: {
+        required: mockErrorState,
+        minLength: mockErrorState,
+        maxLength: mockErrorState,
+        pattern: mockErrorState,
+        max: mockErrorState,
+        min: mockErrorState,
+        custom: mockErrorState,
+      },
     };
   }
 }

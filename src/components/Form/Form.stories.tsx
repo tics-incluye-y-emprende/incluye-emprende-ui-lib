@@ -27,6 +27,7 @@ interface Payload {
   color: string[];
   message: string;
   subject: string;
+  phone: string;
 }
 
 type ValidationType = keyof ValidityState;
@@ -67,6 +68,12 @@ interface FormControlConfig<K extends keyof Payload> {
     e: React.ChangeEvent<FieldElement>,
   ) => Payload[K] | undefined;
   required?: boolean;
+  /**
+   * Text shown while the field is not being edited. While focused the element
+   * holds the raw value, so change events never contain formatted text.
+   * Not for type="number" or "date", which reject formatted text.
+   */
+  formatter?: (rawValue: FieldElement["value"]) => FieldElement["value"];
 }
 
 /** Each key gets its own config, so every adapter must return that key's payload type */
@@ -111,6 +118,14 @@ const Implementation: React.FC = () => {
       required: true,
       eventToPayloadAdapter: (e) => (e.target as HTMLSelectElement).value,
     },
+    phone: {
+      eventToPayloadAdapter: (e) => e.target.value,
+      // 3001234567 -> 300 123 4567
+      formatter: (raw) =>
+        `Holiii ${[raw.slice(0, 3), raw.slice(3, 6), raw.slice(6)]
+          .filter(Boolean)
+          .join(" ")}`,
+    },
   };
 
   const getPayload = (): Payload | undefined => {
@@ -127,10 +142,39 @@ const Implementation: React.FC = () => {
 
   const [form, setForm] = React.useState<Partial<Payload>>({});
 
+  /** Raw text of the fields that have a formatter */
+  const [rawValues, setRawValues] = React.useState<
+    Partial<Record<keyof Payload, string>>
+  >({});
+
+  const [focusedField, setFocusedField] = React.useState<keyof Payload | null>(
+    null,
+  );
+
   const bindField = <K extends keyof Payload>(
     fieldName: K,
   ): CommonFieldProps => {
-    const { eventToPayloadAdapter, required } = formConfig[fieldName];
+    const { eventToPayloadAdapter, required, formatter } =
+      formConfig[fieldName];
+
+    if (formatter) {
+      const raw = rawValues[fieldName] ?? "";
+      const showRaw = focusedField === fieldName || raw === "";
+      return {
+        name: fieldName,
+        required,
+        value: showRaw ? raw : formatter(raw),
+        onFocus: () => setFocusedField(fieldName),
+        onBlur: () => setFocusedField(null),
+        onChange: (e) => {
+          const newRaw = e.target.value;
+          const value = eventToPayloadAdapter(e);
+          setRawValues((prev) => ({ ...prev, [fieldName]: newRaw }));
+          setForm((prev) => ({ ...prev, [fieldName]: value }));
+        },
+      };
+    }
+
     return {
       name: fieldName,
       required,
@@ -227,6 +271,10 @@ const Implementation: React.FC = () => {
           <option value="option3">Option 3</option>
         </select>
         <label htmlFor="subject">Subject:</label>
+      </div>
+      <div>
+        <input type="tel" id="phone" {...bindField("phone")} />
+        <label htmlFor="phone">Phone:</label>
       </div>
       <Button
         type="submit"
