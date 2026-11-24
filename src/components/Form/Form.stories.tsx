@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "@storybook/test";
 import { Form } from "./Form";
-import { Button } from "../Button";
 import React, { SelectHTMLAttributes } from "react";
 
 const meta = {
@@ -276,7 +275,7 @@ const Implementation: React.FC = () => {
         <input type="tel" id="phone" {...bindField("phone")} />
         <label htmlFor="phone">Phone:</label>
       </div>
-      <Button
+      <button
         type="submit"
         onClick={(e) => {
           e.preventDefault();
@@ -291,7 +290,7 @@ const Implementation: React.FC = () => {
         }}
       >
         Send
-      </Button>
+      </button>
       <pre>{JSON.stringify(form, null, 2)}</pre>
     </form>
   );
