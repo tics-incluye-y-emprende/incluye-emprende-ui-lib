@@ -21,7 +21,7 @@ export interface BoundFieldProps {
    * It does not write to fields with a formatter: `value` already controls them.
    */
   ref: RefCallback<FieldElement>;
-  /** Value of the `required` rule. */
+  /** Value of the `required` rule. It also enables the native validation, unless the form has `noValidate`. */
   required?: boolean;
   /** Only for fields with a formatter: the raw value while focused, the formatted one otherwise. */
   value?: string;
@@ -39,7 +39,12 @@ interface useTypedFormI<Payload> {
    * destructured inside the tags or components.
    */
   bind: (formField: keyof Payload & string) => BoundFieldProps;
-  /** Returns the form's submit handler. `onValid` receives the typed Payload and only runs when the form is valid. */
+  /**
+   * Returns the form's submit handler. `onValid` receives the Payload and only runs when the form is valid.
+   * Using the native `noValidate` on the form is the developer's decision: without it, the browser's
+   * own validation (e.g. of `required`) can block the submit before this handler runs.
+   * Once it runs, only the Validator decides the validity.
+   */
   handleSubmit: (
     onValid: (typedPayload: Payload) => void,
   ) => (e: FormEvent<HTMLFormElement>) => void;

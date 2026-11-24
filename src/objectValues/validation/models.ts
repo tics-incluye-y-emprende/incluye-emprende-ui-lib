@@ -11,7 +11,7 @@ export type ValidationProps = Pick<
 
 /** All the rules: the native ones plus `custom`, the equivalent of the native customError. */
 export type ValidationRules = ValidationProps & {
-  /** Returns true when the raw value is valid. */
+  /** Returns true when the raw value passes the check. Its failure is ignored, like any other rule's, in an empty field that is not required. */
   custom: (rawValue: RawValue) => boolean;
 };
 
@@ -23,14 +23,17 @@ export interface ValidationConfig<propValueType = unknown> {
   errorMessage?: string;
 }
 
-/** Rules of a field; an absent rule is considered valid. */
+/** Rules of a field; an absent rule is not evaluated. */
 export type ValidationsConfig = {
   [P in keyof ValidationRules]?: ValidationConfig<ValidationRules[P]>;
 };
 
 /** One validation rule. */
 export interface ValidationI {
-  /** Returns true when the raw value passes the rule (the opposite of ValidityState flags). */
+  /**
+   * Returns true when the raw value passes the rule (the opposite of ValidityState flags).
+   * A value that the rule cannot evaluate (e.g. `min` with "abc") does not pass.
+   */
   validate(rawValue: RawValue): boolean;
   /** The kind of error this rule represents. */
   readonly errorType: ValidationType;
@@ -40,7 +43,7 @@ export interface ValidationI {
 
 /** Configuration of a Validator. */
 export interface ValidationConfigI {
-  /** Rules to apply; an absent rule is considered valid. */
+  /** Rules to apply; an absent rule is not evaluated. */
   validations: ValidationsConfig;
 }
 
@@ -51,18 +54,26 @@ export interface ValidatorI {
 
 /** Result of one rule, as shown to the form's consumer. */
 export interface ErrorState {
-  /** The kind of error. */
-  type: ValidationType;
-  /** Text to show to the user, if any. */
-  message: string | undefined;
-  /** True when the rule passes. */
-  isValid: boolean;
+  /** The kind of error; only present when the rule fails (isValid is false). */
+  type?: ValidationType;
+  /** The configured message, if any; only present when the rule fails (isValid is false). */
+  message?: string;
+  /** True when the rule passes, false when it fails, undefined when it is not in the config. */
+  isValid: boolean | undefined;
 }
 
 /** Validation result of a whole field. */
 export interface ValidationsState {
-  /** True when all its rules pass. */
+  /**
+   * Whether the field is valid as a whole: true when no rule fails (its isValid is false).
+   * Rules that are not in the config (undefined) do not count.
+   * Exception: a field that is not required (`required` is absent or its propValue is false)
+   * is also valid when it is empty (undefined, "" or []), even if some rule fails.
+   */
   isValid: boolean;
-  /** Result of each rule, accessed by its name. */
+  /**
+   * Result of each rule, accessed by its name. A rule can fail while the field is valid
+   * (empty and not required), so check the field's isValid before showing its message.
+   */
   errorsState: Record<keyof ValidationRules, ErrorState>;
 }

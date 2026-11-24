@@ -7,7 +7,7 @@ export class TypedForm<Payload> implements TypedFormI<Payload> {
   /** Receives the config from which one form control per Payload key is created. */
   constructor(private readonly config: TypedFormConfig<Payload>) {}
 
-  /** True only if all the fields are valid. */
+  /** True only if all the fields are valid; fields that are not required can be empty. */
   get isValid(): boolean {
     return false;
   }
@@ -27,7 +27,7 @@ export class TypedForm<Payload> implements TypedFormI<Payload> {
     return {} as { [K in keyof Payload]: formControlI<Payload, K> };
   }
 
-  /** The typed result, only when the form is valid. */
+  /** The result, only when the form is valid; it includes the raw value of the fields whose adapter returns undefined. */
   get payload(): Payload | undefined {
     return undefined;
   }

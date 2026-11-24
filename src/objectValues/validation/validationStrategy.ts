@@ -6,23 +6,31 @@ import {
 } from "./models";
 import { RawValue } from "../formControl/models";
 
-/** Base class for one validation rule. Each subclass knows how to evaluate one native validation. */
+/**
+ * Base class for one validation rule. Each subclass knows how to evaluate one native validation.
+ * A strategy knows nothing about the other rules: empty values get no special treatment
+ * (unlike native forms). Combining the results, and allowing fields that are not required
+ * to be empty, is the Validator's responsibility.
+ * Groups (string[]): minLength, maxLength, pattern, min and max evaluate each element, and the
+ * group passes when all of them pass, so a group without elements passes. `required` and
+ * `custom` evaluate the group as a whole.
+ */
 abstract class ValidationStrategy<PropValue = unknown> implements ValidationI {
   /** Receives the rule's value and its optional error message. */
   constructor(protected readonly config: ValidationConfig<PropValue>) {}
 
-  /** Returns true when the raw value satisfies the rule. */
+  /** Returns true when the raw value satisfies the rule; a value that cannot be evaluated does not satisfy it. */
   abstract validate(rawValue: RawValue): boolean;
   /** Kind of error, defined by each subclass. */
   protected abstract errorTypeName: ValidationType;
   /** Public access to the kind of error. */
   public get errorType(): ValidationType {
-    return this.errorTypeName;
+    throw new Error("Not implemented");
   }
 
   /** The configured message. */
   public get errorMessage(): string | undefined {
-    return;
+    throw new Error("Not implemented");
   }
 }
 
@@ -39,7 +47,7 @@ class RequiredValidationStrategy extends ValidationStrategy<
    * radio, checkbox and multiple select.
    */
   validate(_rawValue: RawValue): boolean {
-    return false;
+    throw new Error("Not implemented");
   }
 }
 
@@ -51,10 +59,10 @@ class MinLengthValidationStrategy extends ValidationStrategy<
 
   /**
    * Passes when the text is long enough.
-   * ASSUMPTION: an empty optional field passes, as in native forms.
+   * undefined and "" count as length 0, so they fail any limit above 0.
    */
   validate(_rawValue: RawValue): boolean {
-    return false;
+    throw new Error("Not implemented");
   }
 }
 
@@ -64,9 +72,9 @@ class MaxLengthValidationStrategy extends ValidationStrategy<
 > {
   errorTypeName: ValidationType = "tooLong";
 
-  /** Passes when the text is not too long. */
+  /** Passes when the text is not too long. undefined and "" count as length 0. */
   validate(_rawValue: RawValue): boolean {
-    return false;
+    throw new Error("Not implemented");
   }
 }
 
@@ -78,10 +86,11 @@ class PatternValidationStrategy extends ValidationStrategy<
 
   /**
    * Passes when the whole text matches.
-   * ASSUMPTION: full match, and empty passes, as in native forms.
+   * ASSUMPTION: full match, as in native forms.
+   * undefined counts as "", which passes only if the pattern matches it.
    */
   validate(_rawValue: RawValue): boolean {
-    return false;
+    throw new Error("Not implemented");
   }
 }
 
@@ -93,7 +102,7 @@ class CustomValidationStrategy extends ValidationStrategy<
 
   /** Runs the consumer's custom check. */
   validate(_rawValue: RawValue): boolean {
-    return false;
+    throw new Error("Not implemented");
   }
 }
 
@@ -103,9 +112,12 @@ class MaxValueValidationStrategy extends ValidationStrategy<
 > {
   errorTypeName: ValidationType = "rangeOverflow";
 
-  /** Passes when value <= max, for both numbers and dates. */
+  /**
+   * Passes when value <= max, for both numbers and dates.
+   * Anything that cannot be compared fails: undefined, "" and texts that are neither a number nor a date.
+   */
   validate(_rawValue: RawValue): boolean {
-    return false;
+    throw new Error("Not implemented");
   }
 }
 
@@ -115,29 +127,16 @@ class MinValueValidationStrategy extends ValidationStrategy<
 > {
   errorTypeName: ValidationType = "rangeUnderflow";
 
-  /** Passes when value >= min, for both numbers and dates. */
+  /**
+   * Passes when value >= min, for both numbers and dates.
+   * Anything that cannot be compared fails: undefined, "" and texts that are neither a number nor a date.
+   */
   validate(_rawValue: RawValue): boolean {
-    return false;
+    throw new Error("Not implemented");
   }
 }
 
-/** Maps each validation prop to the strategy class that evaluates it, so the Validator can create them from the config. */
-const validationStrategiesPerProp: {
-  [P in keyof ValidationRules]: new (
-    config: ValidationConfig<ValidationRules[P]>,
-  ) => ValidationI;
-} = {
-  required: RequiredValidationStrategy,
-  minLength: MinLengthValidationStrategy,
-  maxLength: MaxLengthValidationStrategy,
-  pattern: PatternValidationStrategy,
-  max: MaxValueValidationStrategy,
-  min: MinValueValidationStrategy,
-  custom: CustomValidationStrategy,
-};
-
 export {
-  validationStrategiesPerProp,
   ValidationStrategy,
   RequiredValidationStrategy,
   MinLengthValidationStrategy,

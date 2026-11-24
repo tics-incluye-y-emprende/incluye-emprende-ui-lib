@@ -15,7 +15,7 @@ export interface TypedFormConfig<Payload> {
 
 /** Immutable state of the whole form, derived from its fields: each operation returns a new form, so React detects the change. */
 export interface TypedFormI<Payload> {
-  /** True when every field passes its validations. */
+  /** True when every field is valid (validationState.isValid), so fields that are not required can be empty. */
   readonly isValid: boolean;
   /** True once at least one field has been blurred. */
   readonly isTouched: boolean;
@@ -23,7 +23,13 @@ export interface TypedFormI<Payload> {
   readonly hasChanged: boolean;
   /** State of each field, accessed by Payload key. */
   readonly fields: { [K in keyof Payload]: formControlI<Payload, K> };
-  /** The complete typed result; undefined while the form is not valid. */
+  /**
+   * The complete result; undefined while the form is not valid.
+   * When a field's adapter returns undefined (e.g. an empty optional field), its current raw value
+   * is included as is, even if it does not match the Payload type. The Payload usually is the body
+   * expected by the API, so making the fields match it is the responsibility of the UI that
+   * implements the form, not of the validators or the hook.
+   */
   readonly payload: Payload | undefined;
 
   /** Applies a change event to a field. */
