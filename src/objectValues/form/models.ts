@@ -13,7 +13,13 @@ export interface TypedFormConfig<Payload> {
   fieldsConfig: { [K in keyof Payload]: FormControlConfig<Payload, K> };
 }
 
-/** Immutable state of the whole form, derived from its fields: each operation returns a new form, so React detects the change. */
+/**
+ * Immutable state of the whole form, derived from its fields.
+ * Each operation returns a new form when some field changes, so React detects it, and the same
+ * form when none does. The fields that do not change keep the same control.
+ * A form without fields is valid, with the payload {}.
+ * change, focus, blur and click throw an error with the name of a field that does not exist.
+ */
 export interface TypedFormI<Payload> {
   /** True when every field is valid (validationState.isValid), so it can be false before the user changes anything. */
   readonly isValid: boolean;
@@ -24,13 +30,13 @@ export interface TypedFormI<Payload> {
   /** State of each field, accessed by Payload key. */
   readonly fields: { [K in keyof Payload]: formControlI<Payload, K> };
   /**
-   * The complete result; undefined while the form is not valid.
-   * When a field's adapter returns undefined, its current raw value
-   * is included as is, even if it does not match the Payload type. The Payload usually is the body
-   * expected by the API, so making the fields match it is the responsibility of the UI that
-   * implements the form, not of the validators or the hook.
+   * The payloadValue of every field; undefined while the form is not valid.
+   * It is what the adapters returned, so a value can be undefined. Making the fields match the Payload
+   * (usually the body expected by the API) is the responsibility of the UI that implements the form.
    */
   readonly payload: Payload | undefined;
+  /** The payloadValue of every field, also while the form is not valid; invalid fields are present as undefined. */
+  readonly partialPayload: PartialPayload<Payload>;
 
   /** Applies a change event to a field. */
   change(field: keyof Payload, e: ChangeEvent<FieldElement>): TypedFormI<Payload>;
@@ -40,13 +46,18 @@ export interface TypedFormI<Payload> {
   blur(field: keyof Payload): TypedFormI<Payload>;
   /** Marks a field as touched. */
   click(field: keyof Payload): TypedFormI<Payload>;
-  /** Changes the default values of the given fields, and the current values of those that have not changed. */
+  /** Changes the default values of the given fields, and the current values of those that have not changed. Absent keys do not change, undefined ones do, and unknown ones are ignored. */
   patchValue(values: PatchValues<Payload>): TypedFormI<Payload>;
-  /** Changes the current values of the given fields, but not their default values. */
+  /** Changes the current values of the given fields, but not their default values. Absent keys do not change, undefined ones do, and unknown ones are ignored. */
   setValue(values: SetValues<Payload>): TypedFormI<Payload>;
   /** Returns every field to its current default value, untouched. */
   reset(): TypedFormI<Payload>;
 }
+
+/** Result of a form that may not be valid, by Payload key. */
+export type PartialPayload<Payload> = {
+  [K in keyof Payload]: Payload[K] | undefined;
+};
 
 /** New default values (raw), by Payload key. */
 export type PatchValues<Payload> = { [K in keyof Payload]?: DefaultValue };

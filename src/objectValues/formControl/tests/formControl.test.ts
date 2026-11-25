@@ -432,7 +432,7 @@ describe("FormControl", () => {
     it("has not changed the default when it is patched with the same value", () => {
       expect(control.patchValue("Nico").defaultValue).toEqual({
         currentValue: "Nico",
-        prevValue: "Nico",
+        prevValue: undefined,
         hasChanged: false,
       });
     });
@@ -619,6 +619,90 @@ describe("FormControl", () => {
         rawValue: "Nico",
         validations: { required: { propValue: true } },
       });
+    });
+  });
+
+  describe("when nothing changes", () => {
+    it("focus returns the same control if it is already focused", () => {
+      const focused = control.focus();
+      expect(focused.focus()).toBe(focused);
+    });
+
+    it("click returns the same control if it is already touched", () => {
+      const clicked = control.click();
+      expect(clicked.click()).toBe(clicked);
+    });
+
+    it("blur returns the same control if it is touched and not focused", () => {
+      const blurred = control.focus().blur();
+      expect(blurred.blur()).toBe(blurred);
+    });
+
+    it("blur returns a new control if it is touched but focused", () => {
+      const focused = control.click().focus();
+      expect(focused.blur()).not.toBe(focused);
+    });
+
+    it("blur returns a new control if it is neither touched nor focused", () => {
+      expect(control.blur()).not.toBe(control);
+      expect(control.blur().isTouched).toBe(true);
+    });
+
+    it.each<[rawValue: RawValue]>([["Ana"], [""], [undefined], [["red", "blue"]]])(
+      "setValue returns the same control with the current value %s",
+      (rawValue) => {
+        const next = control.setValue(rawValue);
+        expect(next.setValue(rawValue)).toBe(next);
+      },
+    );
+
+    it("setValue compares the content of the lists", () => {
+      const next = control.setValue(["red", "blue"]);
+      expect(next.setValue(["red", "blue"])).toBe(next);
+    });
+
+    it("setValue returns a new control with a different empty value", () => {
+      expect(emptyControl.setValue("")).not.toBe(emptyControl);
+      expect(emptyControl.setValue([])).not.toBe(emptyControl);
+    });
+
+    it("patchValue returns the same control with the current default value", () => {
+      expect(control.patchValue("Nico")).toBe(control);
+      expect(emptyControl.patchValue(undefined)).toBe(emptyControl);
+    });
+
+    it("patchValue returns the same control although the field has changed", () => {
+      const changed = control.setValue("Ana");
+      expect(changed.patchValue("Nico")).toBe(changed);
+    });
+
+    it("reset returns the same control if it has its default value and is untouched", () => {
+      expect(control.reset()).toBe(control);
+      expect(emptyControl.reset()).toBe(emptyControl);
+    });
+
+    it("reset returns the same control the second time", () => {
+      const reset = control.setValue("Ana").click().reset();
+      expect(reset.reset()).toBe(reset);
+    });
+
+    it("reset returns a new control if it is touched", () => {
+      const clicked = control.click();
+      expect(clicked.reset()).not.toBe(clicked);
+    });
+
+    it("change returns a new control although the raw value is the same", () => {
+      input.value = "Nico";
+      expect(control.change(event)).not.toBe(control);
+    });
+
+    it("reset removes the payload of an event, although the raw value is the default one", () => {
+      input.value = "Nico";
+      adapter.mockReturnValue("payload of the event");
+      const changed = control.change(event);
+      adapter.mockReturnValue("payload without event");
+      expect(changed.reset()).not.toBe(changed);
+      expect(changed.reset().payloadValue).toBe("payload without event");
     });
   });
 

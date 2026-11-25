@@ -87,6 +87,9 @@ but `maxLength`, unless your `custom` or `pattern` accepts it or `required` is f
 {field.isTouched && field.validationState.errorsState.minLength.message}
 ```
 
+A submit does not mark the fields as touched, so showing errors only with `isTouched` hides them
+in a form that is submitted without interacting with it.
+
 ### 4. A rule's `isValid` has three values
 
 `true` (passes), `false` (fails) and `undefined` (not configured, so it does not count). Compare
@@ -112,8 +115,13 @@ This version does not handle groups of checkboxes that share a name.
 
 ### 8. Validations do not guarantee the Payload type
 
-They only check the raw value. When the field's adapter returns `undefined`, the payload includes the raw value as is, even if it does not match the Payload type.
+They only check the raw value. The form's `payload` has what each adapter returned, even if it is
+`undefined`. Default, patched, set and reset values have no event, so an adapter that reads
+`e.target.checked` or `e.target.files` must handle its absence.
 Making the fields match the body expected by the API is the responsibility of whoever implements the form.
+
+- **`payload`:** the complete result, `undefined` while the form is not valid.
+- **`partialPayload`:** the complete object, with the invalid fields as `undefined`.
 
 ### 9. Validations do not know whether a checkbox or radio is checked
 

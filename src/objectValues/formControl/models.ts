@@ -63,7 +63,10 @@ export interface ValueSate<V = RawValue> {
   readonly hasChanged: boolean;
 }
 
-/** Immutable state of one field: each operation returns a new control and only changes what its comment says. */
+/**
+ * Immutable state of one field. Each operation only changes what its comment says: it returns a
+ * new control when something changes and the same one when nothing does.
+ */
 export interface formControlI<Payload, K extends keyof Payload> {
   /**
    * currentValue is the last default value. prevValue is the one it had before the last patch;
@@ -96,7 +99,11 @@ export interface formControlI<Payload, K extends keyof Payload> {
   /** Result of running the field's validations over the raw value. */
   readonly validationState: ValidationsState;
 
-  /** Reads the new raw value from the event's element and passes it to the adapter, with the event. Throws if the element is not supported. */
+  /**
+   * Reads the new raw value from the event's element and passes it to the adapter, with the event.
+   * Always returns a new control: `checked` or `files` can change while the raw value does not.
+   * Throws if the element is not supported.
+   */
   change(e: ChangeEvent<FieldElement>): formControlI<Payload, K>;
   /** Marks the field as focused. */
   focus(): formControlI<Payload, K>;
@@ -116,7 +123,9 @@ export interface formControlI<Payload, K extends keyof Payload> {
   /**
    * Returns rawValue to the current default value, updating payloadValue and formattedValue, so
    * rawValue.hasChanged is false. The field is no longer touched, so its errors are not shown
-   * immediately; isFocused does not change.
+   * immediately; isFocused does not change. payloadValue no longer comes from an event.
+   * It returns the same control if there is nothing to return: it has its default value, is not
+   * touched and has had no change event since the last reset.
    */
   reset(): formControlI<Payload, K>;
 }

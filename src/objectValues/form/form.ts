@@ -1,6 +1,6 @@
 import type { ChangeEvent } from "react";
 import { FieldElement, formControlI } from "../formControl/models";
-import { PatchValues, SetValues, TypedFormConfig, TypedFormI } from "./models";
+import { PartialPayload, PatchValues, SetValues, TypedFormConfig, TypedFormI } from "./models";
 
 /** Aggregates all the form controls and derives the form-level state from them. It contains no React state. */
 export class TypedForm<Payload> implements TypedFormI<Payload> {
@@ -9,27 +9,32 @@ export class TypedForm<Payload> implements TypedFormI<Payload> {
 
   /** True only if all the fields are valid. */
   get isValid(): boolean {
-    return false;
+    throw new Error("Not implemented");
   }
 
   /** True if any field has been clicked or blurred since the last reset. */
   get isTouched(): boolean {
-    return false;
+    throw new Error("Not implemented");
   }
 
   /** True if any field's rawValue has changed from its defaultValue. */
   get hasChanged(): boolean {
-    return false;
+    throw new Error("Not implemented");
   }
 
   /** The form control of each Payload key. */
   get fields(): { [K in keyof Payload]: formControlI<Payload, K> } {
-    return {} as { [K in keyof Payload]: formControlI<Payload, K> };
+    throw new Error("Not implemented");
   }
 
-  /** The result, only when the form is valid; it includes the raw value of the fields whose adapter returns undefined. */
+  /** The complete result, only when the form is valid. */
   get payload(): Payload | undefined {
-    return undefined;
+    throw new Error("Not implemented");
+  }
+
+  /** The result of the valid fields, also when the form is not valid. */
+  get partialPayload(): PartialPayload<Payload> {
+    throw new Error("Not implemented");
   }
 
   /** Returns a form with the field changed. */
