@@ -93,12 +93,6 @@ export interface formControlI<Payload, K extends keyof Payload> {
   readonly isFocused: boolean;
   /** True once the element has been clicked or blurred (so keyboard users count), even if its value did not change; false again after reset. */
   readonly isTouched: boolean;
-  /**
-   * True while an asynchronous event of the field is being executed.
-   * Any event can be asynchronous, depending on the consumer's implementation.
-   * PENDING: how the control knows that one starts and ends; nothing sets it yet.
-   */
-  readonly isLoading?: boolean;
   /** Result of running the field's validations over the raw value. */
   readonly validationState: ValidationsState;
 

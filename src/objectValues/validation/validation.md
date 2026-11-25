@@ -42,7 +42,7 @@ The result is the field's `validationState`:
 | --- | --- | --- | --- | --- |
 | `required` | there is a value, or `propValue` is false | `valueMissing` | fails if `propValue` is true | fails if `propValue` is true |
 | `minLength` | the text has at least that many characters | `tooShort` | fails if the limit is above 0 | fails |
-| `maxLength` | the text does not exceed that many characters | `tooLong` | passes | fails |
+| `maxLength` | the text does not exceed that many characters | `tooLong` | passes | passes |
 | `pattern` | the **whole** text matches | `patternMismatch` | passes if the pattern matches it | evaluated as `""` |
 | `min` | value >= limit (numbers or dates) | `rangeUnderflow` | fails | fails |
 | `max` | value <= limit (numbers or dates) | `rangeOverflow` | fails | fails |
@@ -80,8 +80,8 @@ for another rule that fails: with `min: 9` the field is invalid.
 
 ### 3. A field can be invalid before the user changes it
 
-A field without default value starts as `undefined`, which fails every rule, even
-`maxLength`, unless your `custom` or `pattern` accepts it or `required` is false. To show errors only after the user interacts, use `isTouched`:
+A field without default value starts as `undefined`, which fails every rule
+but `maxLength`, unless your `custom` or `pattern` accepts it or `required` is false. To show errors only after the user interacts, use `isTouched`:
 
 ```tsx
 {field.isTouched && field.validationState.errorsState.minLength.message}

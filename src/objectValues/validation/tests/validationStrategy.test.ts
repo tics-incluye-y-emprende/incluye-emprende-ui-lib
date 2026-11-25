@@ -65,7 +65,7 @@ describe("MaxLengthValidationStrategy", () => {
     ["accepts a text with the exact length", "abc", true],
     ["rejects a text one character above the limit", "abcd", false],
     ["accepts an empty text", "", true],
-    ["rejects undefined", undefined, false],
+    ["accepts undefined", undefined, true],
     ["accepts a group when all its elements pass", ["abc", "ab"], true],
     ["rejects a group when one element fails", ["abc", "abcd"], false],
     ["accepts a group without elements", [], true],

@@ -11,7 +11,7 @@ import { RawValue } from "../formControl/models";
  * A strategy knows nothing about the other rules: empty values get no special treatment
  * (unlike native forms). Combining the results is the Validator's responsibility.
  * Each rule evaluates undefined on its own. The consumer's implementation is respected: undefined
- * passes if `custom` or the `pattern` accepts it, or if `required` is false.
+ * passes if `custom` or the `pattern` accepts it, or if `required` is false. It also passes `maxLength`.
  * Groups (string[]): minLength, maxLength, pattern, min and max evaluate each element, and the
  * group passes when all of them pass, so a group without elements passes. `required` and
  * `custom` evaluate the group as a whole.
@@ -73,7 +73,7 @@ class MaxLengthValidationStrategy extends ValidationStrategy<
 > {
   errorTypeName: ValidationType = "tooLong";
 
-  /** Passes when the text is not too long. "" has length 0, so it passes. undefined fails. */
+  /** Passes when the text is not too long. undefined and "" do not exceed any limit, so they pass. */
   validate(_rawValue: RawValue): boolean {
     throw new Error("Not implemented");
   }

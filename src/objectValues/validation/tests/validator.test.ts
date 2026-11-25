@@ -108,7 +108,6 @@ describe("Validator", () => {
       ["rejects an empty text that fails", { minLength: { propValue: 3 } }, "", false],
       ["accepts an empty text that passes", { maxLength: { propValue: 3 } }, "", true],
       ["rejects undefined with minLength", { minLength: { propValue: 3 } }, undefined, false],
-      ["rejects undefined with maxLength", { maxLength: { propValue: 3 } }, undefined, false],
       ["rejects undefined with min", { min: { propValue: "9" } }, undefined, false],
       ["rejects undefined with max", { max: { propValue: "10" } }, undefined, false],
       ["rejects an empty group when custom rejects it", { custom: { propValue: () => false } }, [], false],
@@ -142,7 +141,7 @@ describe("Validator", () => {
       ],
       [
         "rejects undefined when there is another rule",
-        { required: { propValue: false }, maxLength: { propValue: 3 } },
+        { required: { propValue: false }, minLength: { propValue: 3 } },
         undefined,
         false,
       ],
@@ -167,6 +166,15 @@ describe("Validator", () => {
       ["required is false", { required: { propValue: false } }],
       ["the pattern accepts the empty text", { pattern: { propValue: "[0-9]*" } }],
       ["the pattern is optional", { pattern: { propValue: "([0-9]{3})?" } }],
+      ["there is only maxLength", { maxLength: { propValue: 3 } }],
+      [
+        "required is false and there is maxLength",
+        { required: { propValue: false }, maxLength: { propValue: 3 } },
+      ],
+      [
+        "the pattern accepts it and there is maxLength",
+        { pattern: { propValue: "[0-9]*" }, maxLength: { propValue: 3 } },
+      ],
       ["custom accepts it", { custom: { propValue: () => true } }],
       [
         "custom compares it explicitly",
@@ -217,6 +225,14 @@ describe("Validator", () => {
         { pattern: { propValue: "[0-9]*" }, custom: { propValue: () => false } },
       ],
       [
+        "maxLength accepts it, but required does not",
+        { required: { propValue: true }, maxLength: { propValue: 3 } },
+      ],
+      [
+        "maxLength accepts it, but minLength does not",
+        { minLength: { propValue: 1 }, maxLength: { propValue: 3 } },
+      ],
+      [
         "custom accepts it, but required does not",
         { required: { propValue: true }, custom: { propValue: () => true } },
       ],
@@ -233,8 +249,9 @@ describe("Validator", () => {
       expect(validator.isValid).toBe(false);
     });
 
-    it.each<[rule: "required" | "pattern" | "custom", validations: ValidationsConfig]>([
+    it.each<[rule: keyof ValidationRules, validations: ValidationsConfig]>([
       ["required", { required: { propValue: false, errorMessage: "Error" } }],
+      ["maxLength", { maxLength: { propValue: 3, errorMessage: "Error" } }],
       ["pattern", { pattern: { propValue: "[0-9]*", errorMessage: "Error" } }],
       ["custom", { custom: { propValue: () => true, errorMessage: "Error" } }],
     ])("%s has no error when it accepts it", (rule, validations) => {
