@@ -7,12 +7,12 @@ export class TypedForm<Payload> implements TypedFormI<Payload> {
   /** Receives the config from which one form control per Payload key is created. */
   constructor(private readonly config: TypedFormConfig<Payload>) {}
 
-  /** True only if all the fields are valid; fields that are not required can be empty. */
+  /** True only if all the fields are valid. */
   get isValid(): boolean {
     return false;
   }
 
-  /** True if any field has been blurred. */
+  /** True if any field has been clicked or blurred since the last reset. */
   get isTouched(): boolean {
     return false;
   }
@@ -47,6 +47,11 @@ export class TypedForm<Payload> implements TypedFormI<Payload> {
     throw new Error("Not implemented");
   }
 
+  /** Returns a form with the field touched. */
+  click(_field: keyof Payload): TypedForm<Payload> {
+    throw new Error("Not implemented");
+  }
+
   /** Returns a form with new default values. */
   patchValue(_values: PatchValues<Payload>): TypedForm<Payload> {
     throw new Error("Not implemented");
@@ -54,6 +59,11 @@ export class TypedForm<Payload> implements TypedFormI<Payload> {
 
   /** Returns a form with new current values and the same default values. */
   setValue(_values: SetValues<Payload>): TypedForm<Payload> {
+    throw new Error("Not implemented");
+  }
+
+  /** Returns a form with every field untouched and in its default value. */
+  reset(): TypedForm<Payload> {
     throw new Error("Not implemented");
   }
 }

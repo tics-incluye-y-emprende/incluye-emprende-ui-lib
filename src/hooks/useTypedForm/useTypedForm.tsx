@@ -16,8 +16,8 @@ export interface BoundFieldProps {
   /**
    * Plain callback, not a hook. React calls it with the element (null on unmount) and it shows
    * the current raw value there, choosing the strategy with instanceof. Elements of the same
-   * radio or checkbox group each receive their own call.
-   * bind must return a new callback on each render, so React runs it again after patchValue and setValue.
+   * radio group each receive their own call.
+   * bind must return a new callback on each render, so React runs it again after patchValue, setValue and reset.
    * It does not write to fields with a formatter: `value` already controls them.
    */
   ref: RefCallback<FieldElement>;
@@ -27,7 +27,10 @@ export interface BoundFieldProps {
   value?: string;
   onChange: (e: ChangeEvent<FieldElement>) => void;
   onFocus: () => void;
+  /** Marks the field as touched and no longer focused. */
   onBlur: () => void;
+  /** Marks the field as touched. */
+  onClick: () => void;
 }
 
 /** What the hook gives to the component that renders the form. */
@@ -48,10 +51,12 @@ interface useTypedFormI<Payload> {
   handleSubmit: (
     onValid: (typedPayload: Payload) => void,
   ) => (e: FormEvent<HTMLFormElement>) => void;
-  /** Changes the default values of the given fields, and the current values of those the user has not changed. */
+  /** Changes the default values of the given fields, and the current values of those that have not changed. */
   patchValue: (values: PatchValues<Payload>) => void;
   /** Changes the current values of the given fields, but not their default values. */
   setValue: (values: SetValues<Payload>) => void;
+  /** Returns every field to its current default value, untouched. */
+  reset: () => void;
   /** Current form state, exposed so the component can show errors, disable the submit button, etc. */
   state: TypedFormI<Payload>;
 }
