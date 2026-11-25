@@ -11,7 +11,7 @@ export type ValidationProps = Pick<
 
 /** All the rules: the native ones plus `custom`, the equivalent of the native customError. */
 export type ValidationRules = ValidationProps & {
-  /** Returns true when the raw value passes the check. Its failure is ignored, like any other rule's, in an empty field that is not required. */
+  /** Returns true when the raw value passes the check. It also decides whether undefined passes. */
   custom: (rawValue: RawValue) => boolean;
 };
 
@@ -43,14 +43,14 @@ export interface ValidationI {
 
 /** Configuration of a Validator. */
 export interface ValidationConfigI {
+  /** The value to validate. It never changes: another value needs another Validator. */
+  rawValue: RawValue;
   /** Rules to apply; an absent rule is not evaluated. */
   validations: ValidationsConfig;
 }
 
-/** Evaluates all the rules of a field. */
-export interface ValidatorI {
-  validate(rawValue: RawValue): ValidationsState;
-}
+/** Creates the validation state of one raw value. */
+export type CreateValidator = (config: ValidationConfigI) => ValidationsState;
 
 /** Result of one rule, as shown to the form's consumer. */
 export interface ErrorState {
@@ -66,14 +66,10 @@ export interface ErrorState {
 export interface ValidationsState {
   /**
    * Whether the field is valid as a whole: true when no rule fails (its isValid is false).
-   * Rules that are not in the config (undefined) do not count.
-   * Exception: a field that is not required (`required` is absent or its propValue is false)
-   * is also valid when it is empty (undefined, "" or []), even if some rule fails.
+   * Rules that are not in the config (undefined) do not count. It depends only on the raw value:
+   * it can be false before the user changes anything. `required` is one more rule.
    */
   isValid: boolean;
-  /**
-   * Result of each rule, accessed by its name. A rule can fail while the field is valid
-   * (empty and not required), so check the field's isValid before showing its message.
-   */
+  /** Result of each rule, accessed by its name. */
   errorsState: Record<keyof ValidationRules, ErrorState>;
 }

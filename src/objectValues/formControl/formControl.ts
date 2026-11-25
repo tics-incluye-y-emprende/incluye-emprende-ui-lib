@@ -1,5 +1,5 @@
 import type { ChangeEvent } from "react";
-import { ValidationsState, ValidatorI } from "../validation/models";
+import { CreateValidator, ValidationsState } from "../validation/models";
 import { Validator } from "../validation/validator";
 import {
   DefaultValue,
@@ -28,21 +28,19 @@ const mockedDefaultState: ValueSate<DefaultValue> = {
 export class FormControl<Payload, K extends keyof Payload>
   implements formControlI<Payload, K>
 {
-  /** Evaluates the raw value against the configured rules. */
-  protected readonly validator: ValidatorI;
-
-  /** The validator can be injected, mainly for tests; by default it is built from `config.validations`. */
+  /** The validator's creation can be replaced, mainly for tests; by default it creates a Validator. */
   constructor(
     protected readonly config: FormControlConfig<Payload, K>,
-    validator?: ValidatorI,
-  ) {
-    this.validator =
-      validator ?? new Validator({ validations: config.validations ?? {} });
-  }
+    protected readonly createValidator: CreateValidator = (validationConfig) =>
+      new Validator(validationConfig),
+  ) {}
 
-  /** Result of validating the current raw value. */
+  /** Result of validating the current raw value. It is created for that value, so it is never outdated. */
   public get validationState(): ValidationsState {
-    return this.validator.validate(this.rawValue.currentValue);
+    return this.createValidator({
+      rawValue: this.rawValue.currentValue,
+      validations: this.config.validations ?? {},
+    });
   }
 
   /** Current default value and the first one. */

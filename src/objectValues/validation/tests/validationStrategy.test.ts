@@ -65,7 +65,7 @@ describe("MaxLengthValidationStrategy", () => {
     ["accepts a text with the exact length", "abc", true],
     ["rejects a text one character above the limit", "abcd", false],
     ["accepts an empty text", "", true],
-    ["accepts undefined", undefined, true],
+    ["rejects undefined", undefined, false],
     ["accepts a group when all its elements pass", ["abc", "ab"], true],
     ["rejects a group when one element fails", ["abc", "abcd"], false],
     ["accepts a group without elements", [], true],
@@ -118,6 +118,19 @@ describe("PatternValidationStrategy", () => {
   ])("%s", (_description, rawValue, isValid) => {
     const pattern = new PatternValidationStrategy({ propValue: "([0-9]{3})?" });
     expect(pattern.validate(rawValue)).toBe(isValid);
+  });
+
+  it.each<[pattern: string, isValid: boolean]>([
+    ["", true],
+    [".*", true],
+    ["[0-9]*", true],
+    ["([0-9]{3})?", true],
+    ["|[0-9]{3}", true],
+    [".+", false],
+    ["undefined", false],
+  ])("evaluates undefined with the pattern '%s' as %s", (propValue, isValid) => {
+    const pattern = new PatternValidationStrategy({ propValue });
+    expect(pattern.validate(undefined)).toBe(isValid);
   });
 });
 
@@ -187,6 +200,20 @@ describe("CustomValidationStrategy", () => {
   it("accepts the value when the check returns true", () => {
     const custom = new CustomValidationStrategy({ propValue: () => true });
     expect(custom.validate("Nico")).toBe(true);
+  });
+
+  it("accepts undefined when the check accepts it", () => {
+    const custom = new CustomValidationStrategy({
+      propValue: (rawValue) => rawValue === undefined,
+    });
+    expect(custom.validate(undefined)).toBe(true);
+  });
+
+  it("rejects undefined when the check rejects it", () => {
+    const custom = new CustomValidationStrategy({
+      propValue: (rawValue) => rawValue !== undefined,
+    });
+    expect(custom.validate(undefined)).toBe(false);
   });
 
   it("rejects the value when the check returns false", () => {

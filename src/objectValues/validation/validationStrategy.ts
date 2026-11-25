@@ -9,8 +9,9 @@ import { RawValue } from "../formControl/models";
 /**
  * Base class for one validation rule. Each subclass knows how to evaluate one native validation.
  * A strategy knows nothing about the other rules: empty values get no special treatment
- * (unlike native forms). Combining the results, and allowing fields that are not required
- * to be empty, is the Validator's responsibility.
+ * (unlike native forms). Combining the results is the Validator's responsibility.
+ * Each rule evaluates undefined on its own. The consumer's implementation is respected: undefined
+ * passes if `custom` or the `pattern` accepts it, or if `required` is false.
  * Groups (string[]): minLength, maxLength, pattern, min and max evaluate each element, and the
  * group passes when all of them pass, so a group without elements passes. `required` and
  * `custom` evaluate the group as a whole.
@@ -59,7 +60,7 @@ class MinLengthValidationStrategy extends ValidationStrategy<
 
   /**
    * Passes when the text is long enough.
-   * undefined and "" count as length 0, so they fail any limit above 0.
+   * "" has length 0, so it fails any limit above 0. undefined fails.
    */
   validate(_rawValue: RawValue): boolean {
     throw new Error("Not implemented");
@@ -72,7 +73,7 @@ class MaxLengthValidationStrategy extends ValidationStrategy<
 > {
   errorTypeName: ValidationType = "tooLong";
 
-  /** Passes when the text is not too long. undefined and "" count as length 0. */
+  /** Passes when the text is not too long. "" has length 0, so it passes. undefined fails. */
   validate(_rawValue: RawValue): boolean {
     throw new Error("Not implemented");
   }
@@ -87,7 +88,7 @@ class PatternValidationStrategy extends ValidationStrategy<
   /**
    * Passes when the whole text matches.
    * ASSUMPTION: full match, as in native forms.
-   * undefined counts as "", which passes only if the pattern matches it.
+   * undefined is evaluated as "", because a pattern only evaluates texts: both pass if the pattern matches "".
    */
   validate(_rawValue: RawValue): boolean {
     throw new Error("Not implemented");

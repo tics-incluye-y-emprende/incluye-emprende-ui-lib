@@ -2,11 +2,10 @@ import { RawValue } from "../formControl/models";
 import {
   ValidationsState,
   ValidationConfigI,
-  ValidatorI,
-  ErrorState,
   ValidationRules,
   ValidationConfig,
   ValidationI,
+  ErrorState,
 } from "./models";
 import {
   CustomValidationStrategy,
@@ -33,40 +32,28 @@ export const validationStrategiesPerProp: {
   custom: CustomValidationStrategy,
 };
 
-/** Temporary placeholder state, to be removed with the implementation. */
-const mockErrorState: ErrorState = {
-  type: "valueMissing",
-  message: "This field is required.",
-  isValid: false,
-};
-
-/** Runs all the rules configured for one field and summarizes the results. It holds no value. */
-export class Validator implements ValidatorI {
-  /** Receives the rules to apply to the field. */
+/**
+ * Validation state of one raw value: runs all the rules configured for the field and summarizes the results.
+ * It is immutable: FormControl owns the raw value and creates another Validator when it changes.
+ */
+export class Validator implements ValidationsState {
+  /** Receives the raw value and the rules to apply to it. */
   constructor(private readonly config: ValidationConfigI) {}
 
   /**
-   * Evaluates the raw value.
-   * - errorsState: the result of each rule, calculated independently of the others.
-   *   Its isValid is undefined when the rule is not in the config.
-   *   Its type and message are only present when the rule fails.
-   * - isValid: the result of the whole field.
-   *   - Required: true only if no rule fails (undefined does not count).
-   *   - Not required (`required` is absent or its propValue is false): true if the value is
-   *     empty (undefined, "" or []) or no rule fails.
+   * The result of the whole field: true only if no rule fails (undefined does not count).
+   * `required` is one more rule: without it, the others are still evaluated with empty values.
    */
-  public validate(_rawValue: RawValue): ValidationsState {
-    return {
-      isValid: false,
-      errorsState: {
-        required: mockErrorState,
-        minLength: mockErrorState,
-        maxLength: mockErrorState,
-        pattern: mockErrorState,
-        max: mockErrorState,
-        min: mockErrorState,
-        custom: mockErrorState,
-      },
-    };
+  public get isValid(): boolean {
+    throw new Error("Not implemented");
+  }
+
+  /**
+   * The result of each rule, calculated independently of the others.
+   * Its isValid is undefined when the rule is not in the config.
+   * Its type and message are only present when the rule fails.
+   */
+  public get errorsState(): Record<keyof ValidationRules, ErrorState> {
+    throw new Error("Not implemented");
   }
 }

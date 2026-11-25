@@ -5,8 +5,8 @@ formatted or transformed for the payload.
 
 - **Strategies** (`validationStrategy.ts`): one class per rule. Each one only decides whether the
   value passes its own rule and knows nothing about the others.
-- **`Validator`** (`validator.ts`): runs the configured rules of one field and combines their
-  results into the validity of the field.
+- **`Validator`** (`validator.ts`): receives a raw value and the configured rules of its field, and
+  combines their results into the validity of the field. It is immutable: each raw value has its own.
 
 ## Usage
 
@@ -38,47 +38,53 @@ The result is the field's `validationState`:
 
 ## Rules
 
-| Rule | Passes when | Error type | `""` or `undefined` |
-| --- | --- | --- | --- |
-| `required` | there is a value, or `propValue` is false | `valueMissing` | fails if `propValue` is true |
-| `minLength` | the text has at least that many characters | `tooShort` | length 0: fails if the limit is above 0 |
-| `maxLength` | the text does not exceed that many characters | `tooLong` | length 0: passes |
-| `pattern` | the **whole** text matches | `patternMismatch` | passes only if the pattern matches `""` |
-| `min` | value >= limit (numbers or dates) | `rangeUnderflow` | fails |
-| `max` | value <= limit (numbers or dates) | `rangeOverflow` | fails |
-| `custom` | your function returns true | `customError` | your function decides |
+| Rule | Passes when | Error type | `""` | `undefined` |
+| --- | --- | --- | --- | --- |
+| `required` | there is a value, or `propValue` is false | `valueMissing` | fails if `propValue` is true | fails if `propValue` is true |
+| `minLength` | the text has at least that many characters | `tooShort` | fails if the limit is above 0 | fails |
+| `maxLength` | the text does not exceed that many characters | `tooLong` | passes | fails |
+| `pattern` | the **whole** text matches | `patternMismatch` | passes if the pattern matches it | evaluated as `""` |
+| `min` | value >= limit (numbers or dates) | `rangeUnderflow` | fails | fails |
+| `max` | value <= limit (numbers or dates) | `rangeOverflow` | fails | fails |
+| `custom` | your function returns true | `customError` | your function decides | your function decides |
 
 ## What you need to know
 
 ### 1. Rules differ from native validation on empty values
 
-Browsers skip `minLength`, `pattern`, `min` and `max` when the field is empty. These strategies
-do not: each rule evaluates every value. Allowing an optional field to be empty is decided
-by the `Validator`.
+Browsers skip `minLength`, `pattern`, `min` and `max` when the field is empty. These rules do
+not: each one evaluates every value.
 
-### 2. An optional field can be empty, but not wrong
+### 2. A field is valid only when no rule fails
 
-- **Required:** valid only if no configured rule fails.
-- **Not required** (`required` is absent or its `propValue` is false): valid if it is empty or no
-  configured rule fails.
+There is no exception for fields that are not required: `required` is one more rule.
 
-Empty means `undefined`, `""` or `[]`. A blank space (`" "`) and `"0"` are values.
+| Rules | `undefined` | `""` | `"ab"` | `"abc"` |
+| --- | --- | --- | --- | --- |
+| none, or only `required: false` | valid | valid | valid | valid |
+| `required: true` | invalid | invalid | valid | valid |
+| `minLength: 3` | invalid | invalid | invalid | valid |
+| `required: false` and `minLength: 3` | invalid | invalid | invalid | valid |
 
-With `minLength: 3`:
+To make a field optional, but correct when it has a value, use **only** `custom`, or a
+`pattern` that accepts the empty text:
 
-| Value | Required | Not required |
-| --- | --- | --- |
-| `"abc"` | valid | valid |
-| `"ab"` | invalid | invalid |
-| `""` | invalid | **valid** |
+```ts
+custom: { propValue: (rawValue) => !rawValue || rawValue.length >= 3 }
 
-### 3. Check the field's `isValid` before showing errors
+pattern: { propValue: "([0-9]{3})?" }
+```
 
-An empty optional field is valid, but its rules can still fail in `errorsState`. Without
-this check, it would show an error although the field is valid.
+If your `custom` or your `pattern` accepts `undefined`, that is respected, but it does not make up
+for another rule that fails: with `min: 9` the field is invalid.
+
+### 3. A field can be invalid before the user changes it
+
+A field without default value starts as `undefined`, which fails every rule, even
+`maxLength`, unless your `custom` or `pattern` accepts it or `required` is false. To show errors only after the user interacts, use `isTouched`:
 
 ```tsx
-{!validationState.isValid && errorsState.minLength.message}
+{field.isTouched && field.validationState.errorsState.minLength.message}
 ```
 
 ### 4. A rule's `isValid` has three values
@@ -87,16 +93,17 @@ this check, it would show an error although the field is valid.
 with `=== false`: `!isValid` would also include the rules that are not configured.
 `type` and `message` are only present when the rule fails.
 
-### 5. `custom` is also ignored in an empty optional field
+### 5. `custom` always counts
 
-A check such as "the phone is mandatory if there is no email" needs `required: { propValue: true }`
-on that field to make it invalid when it is empty.
+It receives every raw value, also the empty ones, and decides whether they pass.
 
 ### 6. A value that cannot be checked is invalid
 
 `min` and `max` fail with a text that is neither a number nor a date, such as `"abc"`.
 
-### 7. Groups (checkbox groups and multiple selects)
+### 7. Groups (multiple selects)
+
+This version does not handle groups of checkboxes that share a name.
 
 - `minLength`, `maxLength`, `pattern`, `min` and `max` evaluate **each element**; all of them must
   pass. They do not count the selected options: use `custom` for that.
@@ -105,8 +112,7 @@ on that field to make it invalid when it is empty.
 
 ### 8. Validations do not guarantee the Payload type
 
-They only check the raw value. When the field's adapter returns `undefined` (e.g. an empty optional
-field), the payload includes the raw value as is, even if it does not match the Payload type.
+They only check the raw value. When the field's adapter returns `undefined`, the payload includes the raw value as is, even if it does not match the Payload type.
 Making the fields match the body expected by the API is the responsibility of whoever implements the form.
 
 ### 9. `noValidate` is your decision
