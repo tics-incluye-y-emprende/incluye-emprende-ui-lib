@@ -49,9 +49,6 @@ export interface ValidationConfigI {
   validations: ValidationsConfig;
 }
 
-/** Creates the validation state of one raw value. */
-export type CreateValidator = (config: ValidationConfigI) => ValidationsState;
-
 /** Result of one rule, as shown to the form's consumer. */
 export interface ErrorState {
   /** The kind of error; only present when the rule fails (isValid is false). */

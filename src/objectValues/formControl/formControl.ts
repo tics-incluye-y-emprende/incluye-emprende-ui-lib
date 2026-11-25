@@ -1,5 +1,5 @@
 import type { ChangeEvent } from "react";
-import { CreateValidator, ValidationsState } from "../validation/models";
+import { ValidationsState } from "../validation/models";
 import { Validator } from "../validation/validator";
 import {
   DefaultValue,
@@ -14,16 +14,12 @@ import {
 export class FormControl<Payload, K extends keyof Payload>
   implements formControlI<Payload, K>
 {
-  /** The validator's creation can be replaced, mainly for tests; by default it creates a Validator. */
-  constructor(
-    protected readonly config: FormControlConfig<Payload, K>,
-    protected readonly createValidator: CreateValidator = (validationConfig) =>
-      new Validator(validationConfig),
-  ) {}
+  /** Receives the config of the field, including its validation rules. */
+  constructor(protected readonly config: FormControlConfig<Payload, K>) {}
 
   /** Result of validating the current raw value. It is created for that value, so it is never outdated. */
   public get validationState(): ValidationsState {
-    return this.createValidator({
+    return new Validator({
       rawValue: this.rawValue.currentValue,
       validations: this.config.validations ?? {},
     });
@@ -101,16 +97,16 @@ export abstract class FormControlStrategy<
 > {
   constructor(protected readonly element: Element) {}
 
-  /** Returns the next raw value. The current one is needed for radios, where an unchecked one keeps it. */
-  abstract getRawValue(currentValue: RawValue): RawValue;
+  /** Returns the raw value of the element. */
+  abstract getRawValue(): RawValue;
 
-  /** Shows a raw value in the element: its text, checked state or selected options. Writes only what differs. */
+  /** Shows a raw value in the element: its text or selected options. Writes only what differs. */
   abstract setRawValue(rawValue: RawValue): void;
 }
 
 /** Strategy for `<input>`. It delegates to the strategy of its type (see formControlInput.ts). */
 export class FormControlInputStrategy extends FormControlStrategy<HTMLInputElement> {
-  getRawValue(_currentValue: RawValue): RawValue {
+  getRawValue(): RawValue {
     throw new Error("Not implemented");
   }
 
@@ -127,7 +123,7 @@ export class FormControlInputStrategy extends FormControlStrategy<HTMLInputEleme
  *   Setting a value selects only the matching options; a single string is a list of one.
  */
 export class FormControlSelectStrategy extends FormControlStrategy<HTMLSelectElement> {
-  getRawValue(_currentValue: RawValue): RawValue {
+  getRawValue(): RawValue {
     throw new Error("Not implemented");
   }
 
@@ -138,7 +134,7 @@ export class FormControlSelectStrategy extends FormControlStrategy<HTMLSelectEle
 
 /** Strategy for `<textarea>`. The raw value is its text; setting undefined shows "". */
 export class FormControlTextareaStrategy extends FormControlStrategy<HTMLTextAreaElement> {
-  getRawValue(_currentValue: RawValue): RawValue {
+  getRawValue(): RawValue {
     throw new Error("Not implemented");
   }
 

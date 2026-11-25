@@ -2,14 +2,14 @@ import { RawValue } from "./models";
 
 /**
  * Knows how to read and show the raw value in one kind of `<input>`, according to its type.
- * It is a second level of FormControlInputStrategy, because inputs use different properties:
- * `value` (text-like), `checked` (checkbox and radio) or a `value` that cannot be written (file).
+ * It is a second level of FormControlInputStrategy, because inputs use their `value` differently:
+ * it is what the user writes (text-like), it identifies the option (checkbox and radio) or it cannot be written (file).
  */
 export abstract class FormControlInputTypeStrategy {
   constructor(protected readonly element: HTMLInputElement) {}
 
-  /** Returns the next raw value. The current one is needed for radios. */
-  abstract getRawValue(currentValue: RawValue): RawValue;
+  /** Returns the raw value of the input. */
+  abstract getRawValue(): RawValue;
 
   /** Shows a raw value in the input. Writes only what differs. */
   abstract setRawValue(rawValue: RawValue): void;
@@ -18,7 +18,7 @@ export abstract class FormControlInputTypeStrategy {
 /** Text-like inputs (text, tel, number, date...) and any type without its own strategy. */
 export class TextInputStrategy extends FormControlInputTypeStrategy {
   /** Returns the input's value, without modifications. */
-  getRawValue(_currentValue: RawValue): RawValue {
+  getRawValue(): RawValue {
     throw new Error("Not implemented");
   }
 
@@ -31,30 +31,33 @@ export class TextInputStrategy extends FormControlInputTypeStrategy {
   }
 }
 
-/** A single checkbox. This version does not handle groups of checkboxes. */
+/**
+ * A single checkbox. This version does not handle groups of checkboxes.
+ * The raw value and `checked` are independent: the adapter can read `e.target.checked`.
+ */
 export class CheckboxInputStrategy extends FormControlInputTypeStrategy {
-  /**
-   * Returns the checkbox's `value` attribute ("on" by default).
-   * ASSUMPTION: undefined when it is unchecked, so `required` can reject it.
-   */
-  getRawValue(_currentValue: RawValue): RawValue {
+  /** Returns the `value` attribute, whether or not it is checked. */
+  getRawValue(): RawValue {
     throw new Error("Not implemented");
   }
 
-  /** Checks the checkbox only if its `value` is the raw value; unchecks it otherwise. */
+  /** Does nothing: the raw value is independent of `checked`, and writing `value` would replace the one set by the developer. */
   setRawValue(_rawValue: RawValue): void {
     throw new Error("Not implemented");
   }
 }
 
-/** One radio of a group. */
+/**
+ * One radio of a group.
+ * The raw value and `checked` are independent: the adapter can read `e.target.checked`.
+ */
 export class RadioInputStrategy extends FormControlInputTypeStrategy {
-  /** Returns the `value` attribute of the checked radio. An unchecked radio keeps the current value. */
-  getRawValue(_currentValue: RawValue): RawValue {
+  /** Returns the `value` attribute, whether or not it is checked. */
+  getRawValue(): RawValue {
     throw new Error("Not implemented");
   }
 
-  /** Checks the radio only if its `value` is the raw value; unchecks it otherwise. */
+  /** Does nothing: the raw value is independent of `checked`, and writing `value` would replace the one set by the developer. */
   setRawValue(_rawValue: RawValue): void {
     throw new Error("Not implemented");
   }
@@ -63,7 +66,7 @@ export class RadioInputStrategy extends FormControlInputTypeStrategy {
 /** File inputs. The File itself is obtained by the adapter, from `e.target.files`. */
 export class FileInputStrategy extends FormControlInputTypeStrategy {
   /** Returns the input's value: the fake path given by the browser, "" when there is no file. */
-  getRawValue(_currentValue: RawValue): RawValue {
+  getRawValue(): RawValue {
     throw new Error("Not implemented");
   }
 

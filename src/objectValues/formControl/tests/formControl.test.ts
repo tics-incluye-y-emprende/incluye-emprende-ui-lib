@@ -1,7 +1,11 @@
 import type { ChangeEvent } from "react";
 import { ValidationsState } from "../../validation/models";
+import { Validator } from "../../validation/validator";
 import { FormControl } from "../formControl";
 import { DefaultValue, FieldElement, RawValue } from "../models";
+
+// Validator has its own tests.
+vi.mock("../../validation/validator", () => ({ Validator: vi.fn() }));
 
 interface Payload {
   name: string;
@@ -36,7 +40,7 @@ const invalidState: ValidationsState = {
 };
 
 describe("FormControl", () => {
-  const createValidator = vi.fn();
+  const ValidatorMock = vi.mocked(Validator);
   const adapter = vi.fn();
   const formatter = vi.fn();
 
@@ -49,7 +53,7 @@ describe("FormControl", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
-    createValidator.mockReturnValue(validState);
+    ValidatorMock.mockReturnValue(validState as Validator);
     adapter.mockReturnValue("payload");
     formatter.mockReturnValue("formatted");
 
@@ -58,11 +62,9 @@ describe("FormControl", () => {
 
     control = new FormControl<Payload, "name">(
       { rawToPayloadAdapter: adapter, formatter, defaultValue: "Nico" },
-      createValidator,
     );
     emptyControl = new FormControl<Payload, "name">(
       { rawToPayloadAdapter: adapter, formatter },
-      createValidator,
     );
   });
 
@@ -128,7 +130,6 @@ describe("FormControl", () => {
       (_description, defaultValue, rawValue, hasChanged) => {
         const field = new FormControl<Payload, "name">(
           { rawToPayloadAdapter: adapter, defaultValue },
-          createValidator,
         );
         expect(field.setValue(rawValue).rawValue.hasChanged).toBe(hasChanged);
       },
@@ -190,6 +191,19 @@ describe("FormControl", () => {
       expect(changed.rawValue.currentValue).toEqual(["red", "blue"]);
     });
 
+    it.each([true, false])(
+      "reads the value of a checkbox when checked is %s, and the adapter receives the event",
+      (checked) => {
+        input.type = "checkbox";
+        input.value = "terms";
+        input.checked = checked;
+        const changed = control.change(event);
+        expect(changed.rawValue.currentValue).toBe("terms");
+        expect(changed.payloadValue).toBe("payload");
+        expect(adapter).toHaveBeenLastCalledWith("terms", event);
+      },
+    );
+
     it("reads a textarea", () => {
       const textarea = document.createElement("textarea");
       textarea.value = "Hello";
@@ -220,7 +234,6 @@ describe("FormControl", () => {
     it("is what the adapter returns for the default value, without event", () => {
       const field = new FormControl<Payload, "name">(
         { rawToPayloadAdapter: adapter, defaultValue: "Nico" },
-        createValidator,
       );
       expect(field.payloadValue).toBe("payload");
       expect(adapter.mock.lastCall?.[0]).toBe("Nico");
@@ -231,7 +244,6 @@ describe("FormControl", () => {
       adapter.mockReturnValue(3);
       const quantity = new FormControl<Payload, "quantity">(
         { rawToPayloadAdapter: adapter, defaultValue: "3" },
-        createValidator,
       );
       expect(quantity.payloadValue).toBe(3);
       expect(quantity.rawValue.currentValue).toBe("3");
@@ -273,16 +285,15 @@ describe("FormControl", () => {
     });
 
     it("is undefined when the default value is not valid", () => {
-      createValidator.mockReturnValue(invalidState);
+      ValidatorMock.mockReturnValue(invalidState as Validator);
       const invalid = new FormControl<Payload, "name">(
         { rawToPayloadAdapter: adapter, defaultValue: "Nico" },
-        createValidator,
       );
       expect(invalid.payloadValue).toBeUndefined();
     });
 
     it("is undefined while the field is not valid, keeping the raw value", () => {
-      createValidator.mockReturnValue(invalidState);
+      ValidatorMock.mockReturnValue(invalidState as Validator);
       input.value = "Ana";
       const invalid = control.change(event);
       expect(invalid.payloadValue).toBeUndefined();
@@ -290,9 +301,9 @@ describe("FormControl", () => {
     });
 
     it("returns when the field is valid again", () => {
-      createValidator.mockReturnValue(invalidState);
+      ValidatorMock.mockReturnValue(invalidState as Validator);
       const invalid = control.change(event);
-      createValidator.mockReturnValue(validState);
+      ValidatorMock.mockReturnValue(validState as Validator);
       expect(invalid.change(event).payloadValue).toBe("payload");
     });
 
@@ -302,7 +313,6 @@ describe("FormControl", () => {
       input.type = "file";
       const changed = new FormControl<Payload, "file">(
         { rawToPayloadAdapter: adapter },
-        createValidator,
       ).change(event);
       expect(changed.focus().click().blur().payloadValue).toBe(file);
       expect(adapter).toHaveBeenLastCalledWith("", event);
@@ -318,7 +328,6 @@ describe("FormControl", () => {
     it("is undefined without formatter", () => {
       const field = new FormControl<Payload, "name">(
         { rawToPayloadAdapter: adapter, defaultValue: "Nico" },
-        createValidator,
       );
       expect(field.formattedValue).toBeUndefined();
     });
@@ -350,7 +359,7 @@ describe("FormControl", () => {
     });
 
     it("is calculated although the field is not valid", () => {
-      createValidator.mockReturnValue(invalidState);
+      ValidatorMock.mockReturnValue(invalidState as Validator);
       expect(control.setValue("Ana").formattedValue).toBe("formatted");
     });
 
@@ -564,24 +573,24 @@ describe("FormControl", () => {
   describe("validationState", () => {
     it("is the validator created for the default value", () => {
       expect(control.validationState).toEqual(validState);
-      expect(createValidator).toHaveBeenLastCalledWith({
+      expect(ValidatorMock).toHaveBeenLastCalledWith({
         rawValue: "Nico",
         validations: {},
       });
     });
 
     it("is created for the changed raw value", () => {
-      createValidator.mockReturnValue(invalidState);
+      ValidatorMock.mockReturnValue(invalidState as Validator);
       input.value = "Ana";
       expect(control.change(event).validationState).toEqual(invalidState);
-      expect(createValidator).toHaveBeenLastCalledWith({
+      expect(ValidatorMock).toHaveBeenLastCalledWith({
         rawValue: "Ana",
         validations: {},
       });
     });
 
-    it("keeps the way of creating validators after every operation", () => {
-      createValidator.mockReturnValue(invalidState);
+    it("is created for the current raw value after several operations", () => {
+      ValidatorMock.mockReturnValue(invalidState as Validator);
       const next = control
         .focus()
         .click()
@@ -591,7 +600,7 @@ describe("FormControl", () => {
         .reset()
         .setValue("Luz");
       expect(next.validationState).toEqual(invalidState);
-      expect(createValidator).toHaveBeenLastCalledWith({
+      expect(ValidatorMock).toHaveBeenLastCalledWith({
         rawValue: "Luz",
         validations: {},
       });
@@ -604,24 +613,12 @@ describe("FormControl", () => {
           defaultValue: "Nico",
           validations: { required: { propValue: true } },
         },
-        createValidator,
       );
       expect(field.validationState).toEqual(validState);
-      expect(createValidator).toHaveBeenLastCalledWith({
+      expect(ValidatorMock).toHaveBeenLastCalledWith({
         rawValue: "Nico",
         validations: { required: { propValue: true } },
       });
-    });
-
-    it("creates a Validator by default", () => {
-      const field = new FormControl<Payload, "name">({
-        rawToPayloadAdapter: adapter,
-        validations: {
-          required: { propValue: true, errorMessage: "Required" },
-        },
-      });
-      expect(field.validationState.isValid).toBe(false);
-      expect(field.validationState.errorsState.required.message).toBe("Required");
     });
   });
 

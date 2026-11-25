@@ -15,8 +15,8 @@ export interface BoundFieldProps {
   name: string;
   /**
    * Plain callback, not a hook. React calls it with the element (null on unmount) and it shows
-   * the current raw value there, choosing the strategy with instanceof. Elements of the same
-   * radio group each receive their own call.
+   * the current raw value there, choosing the strategy with instanceof. It shows nothing
+   * in checkboxes and radios, whose raw value is independent of `checked`.
    * bind must return a new callback on each render, so React runs it again after patchValue, setValue and reset.
    * It does not write to fields with a formatter: `value` already controls them.
    */

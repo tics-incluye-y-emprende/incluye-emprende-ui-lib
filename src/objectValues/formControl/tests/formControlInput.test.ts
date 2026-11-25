@@ -45,7 +45,7 @@ describe("TextInputStrategy", () => {
   ])("reads the unmodified value of type %s: '%s'", (type, value) => {
     input.type = type;
     input.value = value;
-    expect(new TextInputStrategy(input).getRawValue("before")).toBe(value);
+    expect(new TextInputStrategy(input).getRawValue()).toBe(value);
   });
 
   it.each<[rawValue: RawValue, value: string]>([
@@ -69,46 +69,35 @@ describe("TextInputStrategy", () => {
 describe("CheckboxInputStrategy", () => {
   beforeEach(() => {
     input.type = "checkbox";
+    input.value = "terms";
   });
 
-  it("reads its value when it is checked", () => {
-    input.value = "terms";
-    input.checked = true;
-    expect(new CheckboxInputStrategy(input).getRawValue(undefined)).toBe("terms");
+  it.each([true, false])("reads its value when checked is %s", (checked) => {
+    input.checked = checked;
+    expect(new CheckboxInputStrategy(input).getRawValue()).toBe("terms");
   });
 
   it("reads 'on' when it has no value", () => {
-    input.checked = true;
-    expect(new CheckboxInputStrategy(input).getRawValue(undefined)).toBe("on");
+    input.removeAttribute("value");
+    expect(new CheckboxInputStrategy(input).getRawValue()).toBe("on");
   });
 
-  it("reads undefined when it is not checked", () => {
-    input.value = "terms";
-    expect(new CheckboxInputStrategy(input).getRawValue("terms")).toBeUndefined();
-  });
-
-  it.each<[rawValue: RawValue, before: boolean, after: boolean]>([
-    ["terms", false, true],
-    ["terms", true, true],
-    ["other", true, false],
-    ["other", false, false],
-    ["", true, false],
-    [undefined, true, false],
-  ])("with %s goes from checked=%s to %s", (rawValue, before, after) => {
-    input.value = "terms";
-    input.checked = before;
-    new CheckboxInputStrategy(input).setRawValue(rawValue);
-    expect(input.checked).toBe(after);
-    expect(input.value).toBe("terms");
-  });
-
-  it("does not write an equal state", () => {
-    input.value = "terms";
-    input.checked = true;
-    const write = vi.spyOn(HTMLInputElement.prototype, "checked", "set");
-    new CheckboxInputStrategy(input).setRawValue("terms");
-    expect(write).not.toHaveBeenCalled();
-  });
+  it.each<[rawValue: RawValue, checked: boolean]>([
+    ["terms", false],
+    ["terms", true],
+    ["other", false],
+    ["other", true],
+    ["", true],
+    [undefined, true],
+  ])(
+    "setRawValue with %s does not modify checked=%s nor its value",
+    (rawValue, checked) => {
+      input.checked = checked;
+      new CheckboxInputStrategy(input).setRawValue(rawValue);
+      expect(input.checked).toBe(checked);
+      expect(input.value).toBe("terms");
+    },
+  );
 });
 
 describe("RadioInputStrategy", () => {
@@ -117,39 +106,27 @@ describe("RadioInputStrategy", () => {
     input.value = "red";
   });
 
-  it("reads its value when it is checked", () => {
-    input.checked = true;
-    expect(new RadioInputStrategy(input).getRawValue("blue")).toBe("red");
+  it.each([true, false])("reads its value when checked is %s", (checked) => {
+    input.checked = checked;
+    expect(new RadioInputStrategy(input).getRawValue()).toBe("red");
   });
 
-  it("keeps the current value when it is not checked", () => {
-    expect(new RadioInputStrategy(input).getRawValue("blue")).toBe("blue");
-  });
-
-  it("keeps undefined when it is not checked", () => {
-    expect(new RadioInputStrategy(input).getRawValue(undefined)).toBeUndefined();
-  });
-
-  it.each<[rawValue: RawValue, before: boolean, after: boolean]>([
-    ["red", false, true],
-    ["red", true, true],
-    ["blue", true, false],
-    ["blue", false, false],
-    ["", true, false],
-    [undefined, true, false],
-  ])("with %s goes from checked=%s to %s", (rawValue, before, after) => {
-    input.checked = before;
-    new RadioInputStrategy(input).setRawValue(rawValue);
-    expect(input.checked).toBe(after);
-    expect(input.value).toBe("red");
-  });
-
-  it("does not write an equal state", () => {
-    input.checked = true;
-    const write = vi.spyOn(HTMLInputElement.prototype, "checked", "set");
-    new RadioInputStrategy(input).setRawValue("red");
-    expect(write).not.toHaveBeenCalled();
-  });
+  it.each<[rawValue: RawValue, checked: boolean]>([
+    ["red", false],
+    ["red", true],
+    ["other", false],
+    ["other", true],
+    ["", true],
+    [undefined, true],
+  ])(
+    "setRawValue with %s does not modify checked=%s nor its value",
+    (rawValue, checked) => {
+      input.checked = checked;
+      new RadioInputStrategy(input).setRawValue(rawValue);
+      expect(input.checked).toBe(checked);
+      expect(input.value).toBe("red");
+    },
+  );
 });
 
 // Browsers do not allow selecting a file by code, so the input's value is mocked.
@@ -162,13 +139,13 @@ describe("FileInputStrategy", () => {
     vi.spyOn(HTMLInputElement.prototype, "value", "get").mockReturnValue(
       "C:\\fakepath\\cv.pdf",
     );
-    expect(new FileInputStrategy(input).getRawValue(undefined)).toBe(
+    expect(new FileInputStrategy(input).getRawValue()).toBe(
       "C:\\fakepath\\cv.pdf",
     );
   });
 
   it("reads an empty text when there is no file", () => {
-    expect(new FileInputStrategy(input).getRawValue(undefined)).toBe("");
+    expect(new FileInputStrategy(input).getRawValue()).toBe("");
   });
 
   it.each<[rawValue: RawValue]>([[undefined], [""]])(

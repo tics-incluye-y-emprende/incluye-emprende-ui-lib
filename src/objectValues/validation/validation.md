@@ -115,7 +115,13 @@ This version does not handle groups of checkboxes that share a name.
 They only check the raw value. When the field's adapter returns `undefined`, the payload includes the raw value as is, even if it does not match the Payload type.
 Making the fields match the body expected by the API is the responsibility of whoever implements the form.
 
-### 9. `noValidate` is your decision
+### 9. Validations do not know whether a checkbox or radio is checked
+
+The raw value of both is their `value`, whether or not they are checked. `checked` is independent:
+read it in the adapter, with `e.target.checked`. So `required` and `custom` cannot reject an
+unchecked checkbox, and default, patched, set or reset values do not check or uncheck it.
+
+### 10. `noValidate` is your decision
 
 `bind` sets the native `required` attribute, so without `noValidate` the browser can block the
 submit with its own message before `handleSubmit` runs. With it, only the `Validator` decides.

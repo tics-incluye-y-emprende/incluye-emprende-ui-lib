@@ -43,9 +43,8 @@ class RequiredValidationStrategy extends ValidationStrategy<
 
   /**
    * Passes when the field has a value, or when required is false.
-   * Missing means undefined or the empty value of its kind of field: "" for text-like
-   * inputs, textarea and select; nothing checked or selected (undefined or []) for
-   * radio, checkbox and multiple select.
+   * Missing means undefined, "" or [].
+   * It only evaluates the raw value, so it does not know whether a checkbox or radio is checked.
    */
   validate(_rawValue: RawValue): boolean {
     throw new Error("Not implemented");
