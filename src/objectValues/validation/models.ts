@@ -1,18 +1,24 @@
-import { allFieldElementProps, RawValue } from "../formControl/models";
+import { allFieldElementProps, ElementState } from "../formControl/models";
 
 /** Kinds of validation error, using the browser's ValidityState names. */
 export type ValidationType = keyof ValidityState;
 
-/** Native validation attributes supported by the library, with their DOM types. */
+/**
+ * A limit of `min` and `max`. Number and range inputs compare it as a number. Date, month, week,
+ * time and datetime-local inputs compare it as a text in the format of the input, e.g. "2026-11-26" or "09:30".
+ */
+export type RangeLimit = number | string;
+
+/** Native validations supported by the library, with their DOM types. */
 export type ValidationProps = Pick<
   allFieldElementProps,
-  "required" | "minLength" | "maxLength" | "pattern" | "max" | "min"
->;
+  "required" | "minLength" | "maxLength" | "pattern"
+> & { max: RangeLimit; min: RangeLimit };
 
 /** All the rules: the native ones plus `custom`, the equivalent of the native customError. */
 export type ValidationRules = ValidationProps & {
-  /** Returns true when the raw value passes the check. It also decides whether undefined passes. */
-  custom: (rawValue: RawValue) => boolean;
+  /** Returns true when the element passes the check. It is not called before the element mounts. */
+  custom: (elementState: ElementState) => boolean;
 };
 
 /** Configuration of one validation rule. */
@@ -23,7 +29,10 @@ export interface ValidationConfig<propValueType = unknown> {
   errorMessage?: string;
 }
 
-/** Rules of a field; an absent rule is not evaluated. */
+/**
+ * Rules of a field; an absent rule is not evaluated. They are independent of the Payload type:
+ * they evaluate the element. A rule without class for the kind of the element throws when it mounts (see validationStrategiesPerProp).
+ */
 export type ValidationsConfig = {
   [P in keyof ValidationRules]?: ValidationConfig<ValidationRules[P]>;
 };
@@ -31,10 +40,10 @@ export type ValidationsConfig = {
 /** One validation rule. */
 export interface ValidationI {
   /**
-   * Returns true when the raw value passes the rule (the opposite of ValidityState flags).
-   * A value that the rule cannot evaluate (e.g. `min` with "abc") does not pass.
+   * Returns true when the element passes the rule (the opposite of ValidityState flags) and false when
+   * it fails. It only receives mounted elements, of a kind that its class supports.
    */
-  validate(rawValue: RawValue): boolean;
+  validate(elementState: ElementState): boolean;
   /** The kind of error this rule represents. */
   readonly errorType: ValidationType;
   /** The configured message. */
@@ -43,8 +52,8 @@ export interface ValidationI {
 
 /** Configuration of a Validator. */
 export interface ValidationConfigI {
-  /** The value to validate. It never changes: another value needs another Validator. */
-  rawValue: RawValue;
+  /** The state of the element to validate. It never changes: another state needs another Validator. */
+  elementState: ElementState;
   /** Rules to apply; an absent rule is not evaluated. */
   validations: ValidationsConfig;
 }
@@ -55,18 +64,18 @@ export interface ErrorState {
   type?: ValidationType;
   /** The configured message, if any; only present when the rule fails (isValid is false). */
   message?: string;
-  /** True when the rule passes, false when it fails, undefined when it is not in the config. */
+  /** True when the rule passes, false when it fails, undefined when it is not in the config or the element has not mounted. */
   isValid: boolean | undefined;
 }
 
 /** Validation result of a whole field. */
 export interface ValidationsState {
   /**
-   * Whether the field is valid as a whole: true when no rule fails (its isValid is false).
-   * Rules that are not in the config (undefined) do not count. It depends only on the raw value:
-   * it can be false before the user changes anything. `required` is one more rule.
+   * Whether the field is valid as a whole: undefined before the element mounts (nothing can be
+   * evaluated); then, true when no rule fails. Rules that are not in the config do not count.
+   * It can be false before the user changes anything. `required` is one more rule.
    */
-  isValid: boolean;
+  isValid: boolean | undefined;
   /** Result of each rule, accessed by its name. */
   errorsState: Record<keyof ValidationRules, ErrorState>;
 }

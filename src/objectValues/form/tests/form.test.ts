@@ -1,6 +1,5 @@
-import type { ChangeEvent } from "react";
 import { FormControl } from "../../formControl/formControl";
-import { FieldElement } from "../../formControl/models";
+import { ElementState } from "../../formControl/models";
 import { TypedForm } from "../form";
 import { PatchValues, SetValues } from "../models";
 
@@ -12,13 +11,21 @@ interface Payload {
   age: number;
 }
 
+const elementState: ElementState = {
+  kind: "input:text",
+  value: "Ana",
+  checked: false,
+  files: [],
+  badInput: false,
+};
+
 describe("TypedForm", () => {
   const FormControlMock = vi.mocked(FormControl);
 
   const name = {
-    rawValue: { currentValue: "Nico", hasChanged: false },
-    payloadValue: "NICO" as string | undefined,
-    validationState: { isValid: true },
+    value: { currentValue: "Nico", hasChanged: false },
+    payloadValue: "Nico" as string | undefined,
+    validationState: { isValid: true as boolean | undefined },
     isTouched: false,
     change: vi.fn(),
     focus: vi.fn(),
@@ -27,11 +34,12 @@ describe("TypedForm", () => {
     patchValue: vi.fn(),
     setValue: vi.fn(),
     reset: vi.fn(),
+    syncElement: vi.fn(),
   };
   const age = {
-    rawValue: { currentValue: "3", hasChanged: false },
+    value: { currentValue: 3, hasChanged: false },
     payloadValue: 3 as number | undefined,
-    validationState: { isValid: true },
+    validationState: { isValid: true as boolean | undefined },
     isTouched: false,
     change: vi.fn(),
     focus: vi.fn(),
@@ -40,11 +48,12 @@ describe("TypedForm", () => {
     patchValue: vi.fn(),
     setValue: vi.fn(),
     reset: vi.fn(),
+    syncElement: vi.fn(),
   };
   /** What the operations of name return when it changes. */
   const newName = {
-    rawValue: { currentValue: "Ana", hasChanged: true },
-    payloadValue: "ANA",
+    value: { currentValue: "Ana", hasChanged: true },
+    payloadValue: "Ana",
     validationState: { isValid: true },
     isTouched: true,
     change: vi.fn(),
@@ -54,10 +63,11 @@ describe("TypedForm", () => {
     patchValue: vi.fn(),
     setValue: vi.fn(),
     reset: vi.fn(),
+    syncElement: vi.fn(),
   };
   /** What the operations of age return when it changes. */
   const newAge = {
-    rawValue: { currentValue: "4", hasChanged: true },
+    value: { currentValue: 4, hasChanged: true },
     payloadValue: 4,
     validationState: { isValid: true },
     isTouched: true,
@@ -68,21 +78,21 @@ describe("TypedForm", () => {
     patchValue: vi.fn(),
     setValue: vi.fn(),
     reset: vi.fn(),
+    syncElement: vi.fn(),
   };
 
-  const nameConfig = { rawToPayloadAdapter: () => "NICO", defaultValue: "Nico" };
-  const ageConfig = { rawToPayloadAdapter: () => 3, defaultValue: "3" };
-  const event = {} as ChangeEvent<FieldElement>;
+  const nameConfig = { eventToPayloadAdapter: () => "Nico", defaultValue: "Nico" };
+  const ageConfig = { eventToPayloadAdapter: () => 3, defaultValue: 3 };
 
   let form: TypedForm<Payload>;
 
   beforeEach(() => {
     vi.resetAllMocks();
-    name.rawValue.hasChanged = false;
-    name.payloadValue = "NICO";
+    name.value.hasChanged = false;
+    name.payloadValue = "Nico";
     name.validationState.isValid = true;
     name.isTouched = false;
-    age.rawValue.hasChanged = false;
+    age.value.hasChanged = false;
     age.payloadValue = 3;
     age.validationState.isValid = true;
     age.isTouched = false;
@@ -138,6 +148,9 @@ describe("TypedForm", () => {
       [false, true, false],
       [true, false, false],
       [false, false, false],
+      [undefined, true, true],
+      [undefined, undefined, true],
+      [undefined, false, false],
     ])("with fields valid=%s and valid=%s is %s", (first, second, isValid) => {
       name.validationState.isValid = first;
       age.validationState.isValid = second;
@@ -165,8 +178,8 @@ describe("TypedForm", () => {
       [false, true, true],
       [true, true, true],
     ])("with fields changed=%s and changed=%s is %s", (first, second, hasChanged) => {
-      name.rawValue.hasChanged = first;
-      age.rawValue.hasChanged = second;
+      name.value.hasChanged = first;
+      age.value.hasChanged = second;
       expect(form.hasChanged).toBe(hasChanged);
     });
 
@@ -180,8 +193,13 @@ describe("TypedForm", () => {
   });
 
   describe("payload", () => {
+    it("has the value of a field whose element has not mounted", () => {
+      age.validationState.isValid = undefined;
+      expect(form.payload).toStrictEqual({ name: "Nico", age: 3 });
+    });
+
     it("has the payload value of every field when the form is valid", () => {
-      expect(form.payload).toStrictEqual({ name: "NICO", age: 3 });
+      expect(form.payload).toStrictEqual({ name: "Nico", age: 3 });
     });
 
     it("is undefined when one field is not valid", () => {
@@ -190,15 +208,15 @@ describe("TypedForm", () => {
       expect(form.payload).toBeUndefined();
     });
 
-    it("keeps the undefined value of a valid field, without using its raw value", () => {
+    it("keeps the undefined value of a valid field, without using its current value", () => {
       name.payloadValue = undefined;
       expect(form.payload).toStrictEqual({ name: undefined, age: 3 });
     });
 
     it("uses the new control after an operation", () => {
       name.change.mockReturnValue(newName);
-      expect(form.change("name", event).payload).toStrictEqual({
-        name: "ANA",
+      expect(form.change("name", "Ana", elementState).payload).toStrictEqual({
+        name: "Ana",
         age: 3,
       });
     });
@@ -206,13 +224,13 @@ describe("TypedForm", () => {
 
   describe("partialPayload", () => {
     it("is complete when the form is valid", () => {
-      expect(form.partialPayload).toStrictEqual({ name: "NICO", age: 3 });
+      expect(form.partialPayload).toStrictEqual({ name: "Nico", age: 3 });
     });
 
     it("has the invalid fields as undefined", () => {
       age.validationState.isValid = false;
       age.payloadValue = undefined;
-      expect(form.partialPayload).toStrictEqual({ name: "NICO", age: undefined });
+      expect(form.partialPayload).toStrictEqual({ name: "Nico", age: undefined });
     });
 
     it("has every key when no field is valid", () => {
@@ -228,10 +246,10 @@ describe("TypedForm", () => {
   });
 
   describe("change", () => {
-    it("passes the event to the field and returns a new form with its new control", () => {
+    it("passes the value and the element state to the field and returns a new form with its new control", () => {
       name.change.mockReturnValue(newName);
-      const next = form.change("name", event);
-      expect(name.change).toHaveBeenCalledWith(event);
+      const next = form.change("name", "Ana", elementState);
+      expect(name.change).toHaveBeenCalledWith("Ana", elementState);
       expect(next).toBeInstanceOf(TypedForm);
       expect(next).not.toBe(form);
       expect(next.fields.name).toBe(newName);
@@ -239,14 +257,34 @@ describe("TypedForm", () => {
 
     it("does not modify the other fields nor the original form", () => {
       name.change.mockReturnValue(newName);
-      const next = form.change("name", event);
+      const next = form.change("name", "Ana", elementState);
       expect(next.fields.age).toBe(age);
       expect(age.change).not.toHaveBeenCalled();
       expect(form.fields.name).toBe(name);
     });
 
     it("throws an error with the name of an unknown field", () => {
-      expect(() => form.change("email" as keyof Payload, event)).toThrow(/email/);
+      expect(() => form.change("email" as keyof Payload, "Ana", elementState)).toThrow(/email/);
+    });
+  });
+
+  describe("syncElement", () => {
+    it("passes the element state to the field and returns a new form with its new control", () => {
+      name.syncElement.mockReturnValue(newName);
+      const next = form.syncElement("name", elementState);
+      expect(name.syncElement).toHaveBeenCalledWith(elementState);
+      expect(next).toBeInstanceOf(TypedForm);
+      expect(next.fields.name).toBe(newName);
+      expect(next.fields.age).toBe(age);
+    });
+
+    it("returns the same form when the field does not change", () => {
+      name.syncElement.mockReturnValue(name);
+      expect(form.syncElement("name", elementState)).toBe(form);
+    });
+
+    it("throws an error with the name of an unknown field", () => {
+      expect(() => form.syncElement("email" as keyof Payload, elementState)).toThrow(/email/);
     });
   });
 
@@ -293,9 +331,9 @@ describe("TypedForm", () => {
     it("changes several fields", () => {
       name[operation].mockReturnValue(newName);
       age[operation].mockReturnValue(newAge);
-      const next = form[operation]({ name: "Ana", age: "4" });
+      const next = form[operation]({ name: "Ana", age: 4 });
       expect(name[operation]).toHaveBeenCalledWith("Ana");
-      expect(age[operation]).toHaveBeenCalledWith("4");
+      expect(age[operation]).toHaveBeenCalledWith(4);
       expect(next.fields.name).toBe(newName);
       expect(next.fields.age).toBe(newAge);
     });
@@ -323,13 +361,13 @@ describe("TypedForm", () => {
     it("returns the same form when no field changes", () => {
       name[operation].mockReturnValue(name);
       age[operation].mockReturnValue(age);
-      expect(form[operation]({ name: "Nico", age: "3" })).toBe(form);
+      expect(form[operation]({ name: "Nico", age: 3 })).toBe(form);
     });
 
     it("returns a new form when only one of the fields changes", () => {
       name[operation].mockReturnValue(name);
       age[operation].mockReturnValue(newAge);
-      const next = form[operation]({ name: "Nico", age: "4" });
+      const next = form[operation]({ name: "Nico", age: 4 });
       expect(next).not.toBe(form);
       expect(next.fields.name).toBe(name);
       expect(next.fields.age).toBe(newAge);
@@ -340,12 +378,6 @@ describe("TypedForm", () => {
       form[operation]({ name: "Ana" });
       expect(form.fields.name).toBe(name);
     });
-  });
-
-  it("setValue accepts a list", () => {
-    name.setValue.mockReturnValue(newName);
-    form.setValue({ name: ["red", "blue"] });
-    expect(name.setValue).toHaveBeenCalledWith(["red", "blue"]);
   });
 
   describe("reset", () => {
@@ -387,11 +419,11 @@ describe("TypedForm", () => {
   it("accumulates the changes of several operations", () => {
     name.change.mockReturnValue(newName);
     age.setValue.mockReturnValue(newAge);
-    const next = form.change("name", event).setValue({ age: "4" });
+    const next = form.change("name", "Ana", elementState).setValue({ age: 4 });
     expect(next.fields.name).toBe(newName);
     expect(next.fields.age).toBe(newAge);
     expect(next.isTouched).toBe(true);
     expect(next.hasChanged).toBe(true);
-    expect(next.payload).toStrictEqual({ name: "ANA", age: 4 });
+    expect(next.payload).toStrictEqual({ name: "Ana", age: 4 });
   });
 });

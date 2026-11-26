@@ -1,77 +1,73 @@
-import { RawValue } from "./models";
+import { ElementState, ElementValue } from "./models";
 
 /**
- * Knows how to read and show the raw value in one kind of `<input>`, according to its type.
- * It is a second level of FormControlInputStrategy, because inputs use their `value` differently:
- * it is what the user writes (text-like), it identifies the option (checkbox and radio) or it cannot be written (file).
+ * Knows how to show a value in one kind of `<input>`, according to its type.
+ * It is a second level of FormControlInputStrategy, because inputs show it differently:
+ * as their text (text-like), being checked (checkbox and radio) or not at all (file).
  */
 export abstract class FormControlInputTypeStrategy {
   constructor(protected readonly element: HTMLInputElement) {}
 
-  /** Returns the raw value of the input. */
-  abstract getRawValue(): RawValue;
+  /** Shows a value in the input. Writes only what differs. */
+  abstract setElementValue(value: ElementValue): void;
 
-  /** Shows a raw value in the input. Writes only what differs. */
-  abstract setRawValue(rawValue: RawValue): void;
+  /** Reads the properties that validations need. The kind is "input:" plus the type of the input. */
+  abstract getElementState(): ElementState;
 }
 
-/** Text-like inputs (text, tel, number, date...) and any type without its own strategy. */
+/** Text-like inputs (text, tel, number, date...) and any type without its own strategy. Their state has their text and validity.badInput. */
 export class TextInputStrategy extends FormControlInputTypeStrategy {
-  /** Returns the input's value, without modifications. */
-  getRawValue(): RawValue {
-    throw new Error("Not implemented");
-  }
-
   /**
-   * Shows the text; undefined shows "".
+   * Shows the text; undefined shows "", and a boolean is written as a text.
    * It does not write an equal value, because writing moves the cursor.
    */
-  setRawValue(_rawValue: RawValue): void {
+  setElementValue(_value: ElementValue): void {
+    throw new Error("Not implemented");
+  }
+
+  getElementState(): ElementState {
     throw new Error("Not implemented");
   }
 }
 
-/**
- * A single checkbox. This version does not handle groups of checkboxes.
- * The raw value and `checked` are independent: the adapter can read `e.target.checked`.
- */
+/** A single checkbox. Groups of checkboxes are not supported. Its state has its `value` and whether it is checked. */
 export class CheckboxInputStrategy extends FormControlInputTypeStrategy {
-  /** Returns the `value` attribute, whether or not it is checked. */
-  getRawValue(): RawValue {
+  /** A boolean checks or unchecks it, and a text checks it only if it is its `value`. undefined unchecks it. It never writes `value`. */
+  setElementValue(_value: ElementValue): void {
     throw new Error("Not implemented");
   }
 
-  /** Does nothing: the raw value is independent of `checked`, and writing `value` would replace the one set by the developer. */
-  setRawValue(_rawValue: RawValue): void {
+  getElementState(): ElementState {
     throw new Error("Not implemented");
   }
 }
 
 /**
- * One radio of a group.
- * The raw value and `checked` are independent: the adapter can read `e.target.checked`.
+ * One radio of a group. Its state describes the whole group: the radios with the same name in its form,
+ * or in the document when it has no form. value is the one of the checked radio, "" if none is.
  */
 export class RadioInputStrategy extends FormControlInputTypeStrategy {
-  /** Returns the `value` attribute, whether or not it is checked. */
-  getRawValue(): RawValue {
+  /** Checks it only if its `value` is the text; a boolean is compared as a text ("true" or "false"). It never writes `value`. */
+  setElementValue(_value: ElementValue): void {
     throw new Error("Not implemented");
   }
 
-  /** Does nothing: the raw value is independent of `checked`, and writing `value` would replace the one set by the developer. */
-  setRawValue(_rawValue: RawValue): void {
+  getElementState(): ElementState {
     throw new Error("Not implemented");
   }
 }
 
-/** File inputs. The File itself is obtained by the adapter, from `e.target.files`. */
+/** File inputs. Their state has the chosen files and the fake path as value. */
 export class FileInputStrategy extends FormControlInputTypeStrategy {
-  /** Returns the input's value: the fake path given by the browser, "" when there is no file. */
-  getRawValue(): RawValue {
+  /**
+   * An empty value (undefined or "") clears the selection. Any other is ignored.
+   * A File set by code has no elementValue, so the selection is cleared: browsers do not allow showing it.
+   */
+  setElementValue(_value: ElementValue): void {
     throw new Error("Not implemented");
   }
 
-  /** An empty value (undefined or "") clears the selection. Any other is ignored: browsers do not allow writing it. */
-  setRawValue(_rawValue: RawValue): void {
+  getElementState(): ElementState {
     throw new Error("Not implemented");
   }
 }

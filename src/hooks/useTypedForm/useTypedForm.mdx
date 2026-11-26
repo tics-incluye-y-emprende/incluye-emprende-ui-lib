@@ -1,0 +1,94 @@
+import { Canvas, Meta } from "@storybook/blocks";
+import * as Stories from "./useTypedForm.stories";
+
+<Meta of={Stories} />
+
+# useTypedForm
+
+Binds native form elements to a typed payload. Each key of the payload has its own config, with the
+adapter that transforms the change event into the type of that key. That value is patched, reset and
+submitted. The validations evaluate the element instead: see the Validation page.
+
+```tsx
+const { bind, handleSubmit, patchValue, setValue, reset, state } =
+  useTypedForm<Payload>({ fieldsConfig });
+```
+
+## Example
+
+<Canvas of={Stories.Basic} />
+
+## Config of each field
+
+- **`eventToPayloadAdapter(e, state)`:** Returns the value of the payload when the user changes the element. `state` is the control before the event.
+- **`payloadToElementAdapter(value)`:** Returns what the element shows for a value. Required unless the value is a text, a number, a boolean or a file.
+- **`defaultValue`:** Payload value the field starts with.
+- **`formatter(value)`:** Text to show while the field is not focused. Only for text-like inputs and textarea.
+- **`validations`:** Rules of the field: see the Validation page.
+
+Return `undefined` when the element is empty. `Number("")` is `0`, so check it first.
+
+## Who writes to the element
+
+While the user edits an element, its content belongs to the browser: `bind` gives neither `value`
+nor `checked`. The hook only writes to it when it mounts, after `patchValue`, `setValue` and `reset`,
+and when a field with formatter gets or loses the focus. After each write it reads the element
+again, so the validations evaluate what it shows.
+
+A field whose element has not mounted is not evaluated, and it does not block the submit.
+
+## What it returns
+
+- **`bind(key)`:** Props to spread on an input, textarea or select.
+- **`handleSubmit(onValid)`:** Submit handler. It prevents the native submit and calls `onValid` with the payload only if the form is valid.
+- **`patchValue(values)`:** Changes the default values, and the current ones of the fields that have not changed.
+- **`setValue(values)`:** Changes the current values, but not the default ones.
+- **`reset()`:** Returns every field to its default value, untouched.
+- **`state`:** `isValid`, `isTouched`, `hasChanged`, `payload`, `partialPayload` and `fields`, with the state of each one.
+
+In `patchValue` and `setValue`, only the passed keys change; passing `undefined` counts.
+
+## Validations
+
+<Canvas of={Stories.Validations} />
+
+### Optional field
+
+<Canvas of={Stories.OptionalField} />
+
+## Formatter
+
+<Canvas of={Stories.Formatter} />
+
+## patchValue, setValue and reset
+
+<Canvas of={Stories.PatchSetAndReset} />
+
+## Elements
+
+Multiple selects and groups of checkboxes that share a name are not supported.
+
+### Select and textarea
+
+<Canvas of={Stories.SelectAndTextarea} />
+
+### Checkbox and radios
+
+A checkbox shows a boolean. A radio is checked when its `value` is the text of the field's value.
+
+<Canvas of={Stories.CheckboxAndRadios} />
+
+### File
+
+Browsers do not allow showing a file chosen by code: with a default, patched or set `File`, the input
+shows no file, although the field has it, and a required file input is not valid.
+
+<Canvas of={Stories.FileInput} />
+
+### Date
+
+<Canvas of={Stories.DateInput} />
+
+## payload and partialPayload
+
+<Canvas of={Stories.PayloadAndPartialPayload} />

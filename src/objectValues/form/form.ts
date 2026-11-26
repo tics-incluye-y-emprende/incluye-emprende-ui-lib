@@ -1,5 +1,4 @@
-import type { ChangeEvent } from "react";
-import { FieldElement, formControlI } from "../formControl/models";
+import { ElementState, formControlI } from "../formControl/models";
 import { PartialPayload, PatchValues, SetValues, TypedFormConfig, TypedFormI } from "./models";
 
 /** Aggregates all the form controls and derives the form-level state from them. It contains no React state. */
@@ -7,7 +6,7 @@ export class TypedForm<Payload> implements TypedFormI<Payload> {
   /** Receives the config from which one form control per Payload key is created. */
   constructor(private readonly config: TypedFormConfig<Payload>) {}
 
-  /** True only if all the fields are valid. */
+  /** True when no field is invalid. */
   get isValid(): boolean {
     throw new Error("Not implemented");
   }
@@ -17,7 +16,7 @@ export class TypedForm<Payload> implements TypedFormI<Payload> {
     throw new Error("Not implemented");
   }
 
-  /** True if any field's rawValue has changed from its defaultValue. */
+  /** True if any field's value has changed from its defaultValue. */
   get hasChanged(): boolean {
     throw new Error("Not implemented");
   }
@@ -37,8 +36,17 @@ export class TypedForm<Payload> implements TypedFormI<Payload> {
     throw new Error("Not implemented");
   }
 
-  /** Returns a form with the field changed. */
-  change(_field: keyof Payload, _e: ChangeEvent<FieldElement>): TypedForm<Payload> {
+  /** Returns a form with the field changed by the user. */
+  change<K extends keyof Payload>(
+    _field: K,
+    _value: Payload[K] | undefined,
+    _elementState: ElementState,
+  ): TypedForm<Payload> {
+    throw new Error("Not implemented");
+  }
+
+  /** Returns a form with the element state of the field replaced. */
+  syncElement(_field: keyof Payload, _elementState: ElementState): TypedForm<Payload> {
     throw new Error("Not implemented");
   }
 

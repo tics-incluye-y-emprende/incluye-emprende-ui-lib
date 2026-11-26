@@ -4,7 +4,7 @@ import {
   FormControlSelectStrategy,
   FormControlTextareaStrategy,
 } from "../formControl";
-import { FieldElement, RawValue } from "../models";
+import { ElementValue, FieldElement } from "../models";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -30,161 +30,136 @@ describe("executeFormControlStrategy", () => {
     const div = document.createElement("div") as unknown as FieldElement;
     expect(() => executeFormControlStrategy(div)).toThrow(/div/i);
   });
+
+  it("throws an error with a multiple select", () => {
+    const select = document.createElement("select");
+    select.multiple = true;
+    expect(() => executeFormControlStrategy(select)).toThrow(/multiple/i);
+  });
 });
 
 describe("FormControlInputStrategy", () => {
-  it.each<[type: string, value: string, checked: boolean, rawValue: RawValue]>([
-    ["text", "Nico", false, "Nico"],
-    ["checkbox", "terms", true, "terms"],
-    ["checkbox", "terms", false, "terms"],
-    ["radio", "red", true, "red"],
-    ["radio", "red", false, "red"],
-    ["file", "", false, ""],
-  ])(
-    "reads type %s with value '%s' and checked=%s as %s",
-    (type, value, checked, rawValue) => {
-      const input = document.createElement("input");
-      input.type = type;
-      input.value = value;
-      input.checked = checked;
-      expect(new FormControlInputStrategy(input).getRawValue()).toBe(rawValue);
-    },
-  );
-
-  it("shows the value of a text", () => {
+  it("shows the text of a text input", () => {
     const input = document.createElement("input");
-    new FormControlInputStrategy(input).setRawValue("Nico");
+    new FormControlInputStrategy(input).setElementValue("Nico");
     expect(input.value).toBe("Nico");
   });
 
-  it.each(["checkbox", "radio"])(
-    "does not modify the checked state of a %s",
-    (type) => {
-      const input = document.createElement("input");
-      input.type = type;
-      input.value = "terms";
-      new FormControlInputStrategy(input).setRawValue("terms");
-      expect(input.checked).toBe(false);
-      expect(input.value).toBe("terms");
-    },
-  );
+  it("checks a checkbox", () => {
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    new FormControlInputStrategy(input).setElementValue(true);
+    expect(input.checked).toBe(true);
+  });
+
+  it("checks a radio", () => {
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.value = "red";
+    new FormControlInputStrategy(input).setElementValue("red");
+    expect(input.checked).toBe(true);
+  });
 });
 
 describe("FormControlTextareaStrategy", () => {
-  it.each(["two\nlines", ""])("reads the unmodified text '%s'", (value) => {
-    const textarea = document.createElement("textarea");
-    textarea.value = value;
-    expect(new FormControlTextareaStrategy(textarea).getRawValue()).toBe(value);
-  });
-
-  it.each<[rawValue: RawValue, value: string]>([
-    ["Hello", "Hello"],
+  it.each<[value: ElementValue, text: string]>([
+    ["two\nlines", "two\nlines"],
     ["", ""],
     [undefined, ""],
-  ])("shows %s as '%s'", (rawValue, value) => {
+    [true, "true"],
+    [false, "false"],
+  ])("shows %s as '%s'", (value, text) => {
     const textarea = document.createElement("textarea");
     textarea.value = "before";
-    new FormControlTextareaStrategy(textarea).setRawValue(rawValue);
-    expect(textarea.value).toBe(value);
+    new FormControlTextareaStrategy(textarea).setElementValue(value);
+    expect(textarea.value).toBe(text);
   });
 
   it("does not write an equal value", () => {
     const textarea = document.createElement("textarea");
     textarea.value = "Hello";
     const write = vi.spyOn(HTMLTextAreaElement.prototype, "value", "set");
-    new FormControlTextareaStrategy(textarea).setRawValue("Hello");
+    new FormControlTextareaStrategy(textarea).setElementValue("Hello");
     expect(write).not.toHaveBeenCalled();
   });
 });
 
-describe("FormControlSelectStrategy with a single selection", () => {
+describe("FormControlSelectStrategy", () => {
   let select: HTMLSelectElement;
 
   beforeEach(() => {
     select = document.createElement("select");
     select.innerHTML = `
-      <option value="">Choose a color</option>
+      <option value="">Choose</option>
       <option value="red">Red</option>
       <option value="blue" selected>Blue</option>
+      <option value="true">Yes</option>
+      <option value="false">No</option>
     `;
   });
 
-  it("reads the selected value", () => {
-    expect(new FormControlSelectStrategy(select).getRawValue()).toBe("blue");
-  });
-
-  it("reads the empty option as an empty text", () => {
-    select.selectedIndex = 0;
-    expect(new FormControlSelectStrategy(select).getRawValue()).toBe("");
-  });
-
-  it("reads an empty text when nothing is selected", () => {
-    select.selectedIndex = -1;
-    expect(new FormControlSelectStrategy(select).getRawValue()).toBe("");
-  });
-
-  it.each<[description: string, rawValue: RawValue, selectedIndex: number]>([
+  it.each<[description: string, value: ElementValue, selectedIndex: number]>([
     ["the matching option", "red", 1],
+    ["the empty option for an empty text", "", 0],
     ["the empty option for undefined", undefined, 0],
+    ["the option 'true' for true", true, 3],
+    ["the option 'false' for false", false, 4],
     ["nothing for another value", "pink", -1],
-  ])("selects %s", (_description, rawValue, selectedIndex) => {
-    new FormControlSelectStrategy(select).setRawValue(rawValue);
+  ])("selects %s", (_description, value, selectedIndex) => {
+    new FormControlSelectStrategy(select).setElementValue(value);
     expect(select.selectedIndex).toBe(selectedIndex);
   });
 
   it("selects nothing for undefined when there is no empty option", () => {
     select.innerHTML = `<option value="red" selected>Red</option>`;
-    new FormControlSelectStrategy(select).setRawValue(undefined);
+    new FormControlSelectStrategy(select).setElementValue(undefined);
     expect(select.selectedIndex).toBe(-1);
   });
 });
 
-describe("FormControlSelectStrategy with a multiple selection", () => {
-  let select: HTMLSelectElement;
+describe("getElementState", () => {
+  it("reads a text input with its type", () => {
+    const input = document.createElement("input");
+    input.type = "email";
+    input.value = "a@b.co";
+    expect(new FormControlInputStrategy(input).getElementState()).toEqual({
+      kind: "input:email",
+      value: "a@b.co",
+      checked: false,
+      files: [],
+      badInput: false,
+    });
+  });
 
-  beforeEach(() => {
-    select = document.createElement("select");
-    select.multiple = true;
+  it("reads a textarea", () => {
+    const textarea = document.createElement("textarea");
+    textarea.value = "two\nlines";
+    expect(new FormControlTextareaStrategy(textarea).getElementState()).toEqual({
+      kind: "textarea",
+      value: "two\nlines",
+      checked: false,
+      files: [],
+      badInput: false,
+    });
+  });
+
+  it.each<[description: string, selectedIndex: number, value: string]>([
+    ["the selected option", 1, "red"],
+    ["the empty option", 0, ""],
+    ["an empty text when nothing is selected", -1, ""],
+  ])("reads %s of a select", (_description, selectedIndex, value) => {
+    const select = document.createElement("select");
     select.innerHTML = `
+      <option value="">Choose</option>
       <option value="red">Red</option>
-      <option value="green" selected>Green</option>
-      <option value="blue">Blue</option>
     `;
-  });
-
-  it("reads a list with the selected value", () => {
-    expect(new FormControlSelectStrategy(select).getRawValue()).toEqual(["green"]);
-  });
-
-  it("reads the selected values in DOM order", () => {
-    select.options[2].selected = true;
-    select.options[0].selected = true;
-    expect(new FormControlSelectStrategy(select).getRawValue()).toEqual(["red", "green", "blue"]);
-  });
-
-  it("reads an empty list when nothing is selected", () => {
-    select.selectedIndex = -1;
-    expect(new FormControlSelectStrategy(select).getRawValue()).toEqual([]);
-  });
-
-  it.each<
-    [
-      description: string,
-      rawValue: RawValue,
-      red: boolean,
-      green: boolean,
-      blue: boolean,
-    ]
-  >([
-    ["only the matching options", ["red", "blue"], true, false, true],
-    ["only the options that exist", ["red", "pink"], true, false, false],
-    ["a single string as a list of one", "red", true, false, false],
-    ["nothing for an empty list", [], false, false, false],
-    ["nothing for undefined", undefined, false, false, false],
-  ])("selects %s", (_description, rawValue, red, green, blue) => {
-    new FormControlSelectStrategy(select).setRawValue(rawValue);
-    expect(select.options[0].selected).toBe(red);
-    expect(select.options[1].selected).toBe(green);
-    expect(select.options[2].selected).toBe(blue);
+    select.selectedIndex = selectedIndex;
+    expect(new FormControlSelectStrategy(select).getElementState()).toEqual({
+      kind: "select",
+      value,
+      checked: false,
+      files: [],
+      badInput: false,
+    });
   });
 });

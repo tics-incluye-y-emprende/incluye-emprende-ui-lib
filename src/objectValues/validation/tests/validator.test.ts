@@ -1,8 +1,12 @@
-import { RawValue } from "../../formControl/models";
+import { ElementState } from "../../formControl/models";
 import { ValidationRules, ValidationsConfig, ValidationType } from "../models";
 import { Validator, validationStrategiesPerProp } from "../validator";
 import {
+  CheckedRequiredValidationStrategy,
   CustomValidationStrategy,
+  DateMaxValueValidationStrategy,
+  DateMinValueValidationStrategy,
+  FileRequiredValidationStrategy,
   MaxLengthValidationStrategy,
   MaxValueValidationStrategy,
   MinLengthValidationStrategy,
@@ -11,44 +15,100 @@ import {
   RequiredValidationStrategy,
 } from "../validationStrategy";
 
+/** Before the element mounts. */
+const unmounted: ElementState = {
+  kind: undefined,
+  value: undefined,
+  checked: undefined,
+  files: undefined,
+  badInput: undefined,
+};
+
 describe("validationStrategiesPerProp", () => {
-  it("maps each rule to its strategy", () => {
+  it("maps each rule and kind to its strategy", () => {
     expect(validationStrategiesPerProp).toEqual({
-      required: RequiredValidationStrategy,
-      minLength: MinLengthValidationStrategy,
-      maxLength: MaxLengthValidationStrategy,
-      pattern: PatternValidationStrategy,
-      min: MinValueValidationStrategy,
-      max: MaxValueValidationStrategy,
-      custom: CustomValidationStrategy,
+      required: {
+        default: RequiredValidationStrategy,
+        "input:checkbox": CheckedRequiredValidationStrategy,
+        "input:radio": CheckedRequiredValidationStrategy,
+        "input:file": FileRequiredValidationStrategy,
+      },
+      minLength: {
+        "input:text": MinLengthValidationStrategy,
+        "input:search": MinLengthValidationStrategy,
+        "input:url": MinLengthValidationStrategy,
+        "input:tel": MinLengthValidationStrategy,
+        "input:email": MinLengthValidationStrategy,
+        "input:password": MinLengthValidationStrategy,
+        textarea: MinLengthValidationStrategy,
+        select: MinLengthValidationStrategy,
+      },
+      maxLength: {
+        "input:text": MaxLengthValidationStrategy,
+        "input:search": MaxLengthValidationStrategy,
+        "input:url": MaxLengthValidationStrategy,
+        "input:tel": MaxLengthValidationStrategy,
+        "input:email": MaxLengthValidationStrategy,
+        "input:password": MaxLengthValidationStrategy,
+        textarea: MaxLengthValidationStrategy,
+        select: MaxLengthValidationStrategy,
+      },
+      pattern: {
+        "input:text": PatternValidationStrategy,
+        "input:search": PatternValidationStrategy,
+        "input:url": PatternValidationStrategy,
+        "input:tel": PatternValidationStrategy,
+        "input:email": PatternValidationStrategy,
+        "input:password": PatternValidationStrategy,
+        textarea: PatternValidationStrategy,
+        select: PatternValidationStrategy,
+      },
+      max: {
+        "input:number": MaxValueValidationStrategy,
+        "input:range": MaxValueValidationStrategy,
+        "input:date": DateMaxValueValidationStrategy,
+        "input:month": DateMaxValueValidationStrategy,
+        "input:week": DateMaxValueValidationStrategy,
+        "input:time": DateMaxValueValidationStrategy,
+        "input:datetime-local": DateMaxValueValidationStrategy,
+      },
+      min: {
+        "input:number": MinValueValidationStrategy,
+        "input:range": MinValueValidationStrategy,
+        "input:date": DateMinValueValidationStrategy,
+        "input:month": DateMinValueValidationStrategy,
+        "input:week": DateMinValueValidationStrategy,
+        "input:time": DateMinValueValidationStrategy,
+        "input:datetime-local": DateMinValueValidationStrategy,
+      },
+      custom: { default: CustomValidationStrategy },
     });
   });
 });
 
 describe("Validator", () => {
-  describe("isValid of the field", () => {
+  describe("isValid of a text field", () => {
     type Case = [
       description: string,
       validations: ValidationsConfig,
-      rawValue: RawValue,
+      value: string,
       isValid: boolean,
     ];
 
     it.each<Case>([
       ["accepts any text", {}, "Nico", true],
       ["accepts an empty text", {}, "", true],
-      ["accepts an empty group", {}, [], true],
-    ])("without rules: %s", (_description, validations, rawValue, isValid) => {
-      const validator = new Validator({ rawValue, validations });
+    ])("without rules: %s", (_description, validations, value, isValid) => {
+      const validator = new Validator({
+        elementState: { kind: "input:text", value, checked: false, files: [], badInput: false },
+        validations,
+      });
       expect(validator.isValid).toBe(isValid);
     });
 
     it.each<Case>([
       ["accepts a text", { required: { propValue: true } }, "Nico", true],
-      ["accepts a group", { required: { propValue: true } }, ["red"], true],
-      ["rejects undefined", { required: { propValue: true } }, undefined, false],
       ["rejects an empty text", { required: { propValue: true } }, "", false],
-      ["rejects an empty group", { required: { propValue: true } }, [], false],
       [
         "accepts a value that passes all the rules",
         {
@@ -79,26 +139,11 @@ describe("Validator", () => {
         "1",
         false,
       ],
-      [
-        "accepts a group when all its elements pass",
-        { required: { propValue: true }, minLength: { propValue: 3 } },
-        ["abc", "abcd"],
-        true,
-      ],
-      [
-        "rejects a group when one element fails",
-        { required: { propValue: true }, minLength: { propValue: 3 } },
-        ["abc", "ab"],
-        false,
-      ],
-      [
-        "rejects a value that min cannot compare",
-        { required: { propValue: true }, min: { propValue: "9" } },
-        "abc",
-        false,
-      ],
-    ])("required: %s", (_description, validations, rawValue, isValid) => {
-      const validator = new Validator({ rawValue, validations });
+    ])("required: %s", (_description, validations, value, isValid) => {
+      const validator = new Validator({
+        elementState: { kind: "input:text", value, checked: false, files: [], badInput: false },
+        validations,
+      });
       expect(validator.isValid).toBe(isValid);
     });
 
@@ -107,17 +152,15 @@ describe("Validator", () => {
       ["rejects a value that fails", { minLength: { propValue: 3 } }, "ab", false],
       ["rejects an empty text that fails", { minLength: { propValue: 3 } }, "", false],
       ["accepts an empty text that passes", { maxLength: { propValue: 3 } }, "", true],
-      ["rejects undefined with minLength", { minLength: { propValue: 3 } }, undefined, false],
-      ["rejects undefined with min", { min: { propValue: "9" } }, undefined, false],
-      ["rejects undefined with max", { max: { propValue: "10" } }, undefined, false],
-      ["rejects an empty group when custom rejects it", { custom: { propValue: () => false } }, [], false],
-    ])(
-      "required is absent: %s",
-      (_description, validations, rawValue, isValid) => {
-        const validator = new Validator({ rawValue, validations });
-        expect(validator.isValid).toBe(isValid);
-      },
-    );
+      ["accepts an empty text when custom accepts it", { custom: { propValue: () => true } }, "", true],
+      ["rejects an empty text when custom rejects it", { custom: { propValue: () => false } }, "", false],
+    ])("required is absent: %s", (_description, validations, value, isValid) => {
+      const validator = new Validator({
+        elementState: { kind: "input:text", value, checked: false, files: [], badInput: false },
+        validations,
+      });
+      expect(validator.isValid).toBe(isValid);
+    });
 
     it.each<Case>([
       ["accepts an empty text when it is the only rule", { required: { propValue: false } }, "", true],
@@ -140,128 +183,135 @@ describe("Validator", () => {
         false,
       ],
       [
-        "rejects undefined when there is another rule",
-        { required: { propValue: false }, minLength: { propValue: 3 } },
-        undefined,
-        false,
+        "accepts an empty text that the optional pattern accepts",
+        { required: { propValue: false }, pattern: { propValue: "([0-9]{3})?" } },
+        "",
+        true,
       ],
-      [
-        "rejects an empty group when custom rejects it",
-        { required: { propValue: false }, custom: { propValue: () => false } },
-        [],
-        false,
-      ],
-    ])(
-      "required is false: %s",
-      (_description, validations, rawValue, isValid) => {
-        const validator = new Validator({ rawValue, validations });
-        expect(validator.isValid).toBe(isValid);
-      },
-    );
-  });
-
-  describe("isValid with undefined", () => {
-    it.each<[description: string, validations: ValidationsConfig]>([
-      ["there are no rules", {}],
-      ["required is false", { required: { propValue: false } }],
-      ["the pattern accepts the empty text", { pattern: { propValue: "[0-9]*" } }],
-      ["the pattern is optional", { pattern: { propValue: "([0-9]{3})?" } }],
-      ["there is only maxLength", { maxLength: { propValue: 3 } }],
-      [
-        "required is false and there is maxLength",
-        { required: { propValue: false }, maxLength: { propValue: 3 } },
-      ],
-      [
-        "the pattern accepts it and there is maxLength",
-        { pattern: { propValue: "[0-9]*" }, maxLength: { propValue: 3 } },
-      ],
-      ["custom accepts it", { custom: { propValue: () => true } }],
-      [
-        "custom compares it explicitly",
-        { custom: { propValue: (rawValue) => rawValue === undefined } },
-      ],
-      [
-        "required is false and the pattern accepts it",
-        { required: { propValue: false }, pattern: { propValue: "[0-9]*" } },
-      ],
-      [
-        "required is false and custom accepts it",
-        { required: { propValue: false }, custom: { propValue: () => true } },
-      ],
-      [
-        "the pattern and custom accept it",
-        { pattern: { propValue: "[0-9]*" }, custom: { propValue: () => true } },
-      ],
-      [
-        "all the rules that can accept it do",
-        {
-          required: { propValue: false },
-          pattern: { propValue: "[0-9]*" },
-          custom: { propValue: () => true },
-        },
-      ],
-    ])("is valid when %s", (_description, validations) => {
-      const validator = new Validator({ rawValue: undefined, validations });
-      expect(validator.isValid).toBe(true);
-    });
-
-    it.each<[description: string, validations: ValidationsConfig]>([
-      ["the pattern rejects it", { pattern: { propValue: "[0-9]+" } }],
-      [
-        "the pattern only matches the word undefined",
-        { pattern: { propValue: "undefined" } },
-      ],
-      ["custom rejects it", { custom: { propValue: () => false } }],
-      [
-        "the pattern accepts it, but required does not",
-        { required: { propValue: true }, pattern: { propValue: "[0-9]*" } },
-      ],
-      [
-        "the pattern accepts it, but min does not",
-        { pattern: { propValue: "[0-9]*" }, min: { propValue: "9" } },
-      ],
-      [
-        "the pattern accepts it, but custom does not",
-        { pattern: { propValue: "[0-9]*" }, custom: { propValue: () => false } },
-      ],
-      [
-        "maxLength accepts it, but required does not",
-        { required: { propValue: true }, maxLength: { propValue: 3 } },
-      ],
-      [
-        "maxLength accepts it, but minLength does not",
-        { minLength: { propValue: 1 }, maxLength: { propValue: 3 } },
-      ],
-      [
-        "custom accepts it, but required does not",
-        { required: { propValue: true }, custom: { propValue: () => true } },
-      ],
-      [
-        "custom accepts it, but minLength does not",
-        { custom: { propValue: () => true }, minLength: { propValue: 3 } },
-      ],
-      [
-        "custom accepts it, but the pattern does not",
-        { custom: { propValue: () => true }, pattern: { propValue: "[0-9]+" } },
-      ],
-    ])("is invalid when %s", (_description, validations) => {
-      const validator = new Validator({ rawValue: undefined, validations });
-      expect(validator.isValid).toBe(false);
-    });
-
-    it.each<[rule: keyof ValidationRules, validations: ValidationsConfig]>([
-      ["required", { required: { propValue: false, errorMessage: "Error" } }],
-      ["maxLength", { maxLength: { propValue: 3, errorMessage: "Error" } }],
-      ["pattern", { pattern: { propValue: "[0-9]*", errorMessage: "Error" } }],
-      ["custom", { custom: { propValue: () => true, errorMessage: "Error" } }],
-    ])("%s has no error when it accepts it", (rule, validations) => {
-      const { errorsState } = new Validator({
-        rawValue: undefined,
+    ])("required is false: %s", (_description, validations, value, isValid) => {
+      const validator = new Validator({
+        elementState: { kind: "input:text", value, checked: false, files: [], badInput: false },
         validations,
       });
-      expect(errorsState[rule].isValid).toBe(true);
-      expect(errorsState[rule].type).toBeUndefined();
-      expect(errorsState[rule].message).toBeUndefined();
+      expect(validator.isValid).toBe(isValid);
+    });
+  });
+
+  describe("isValid of other kinds", () => {
+    it.each<
+      [
+        description: string,
+        elementState: ElementState,
+        validations: ValidationsConfig,
+        isValid: boolean,
+      ]
+    >([
+      [
+        "a required checkbox is valid when checked",
+        { kind: "input:checkbox", value: "on", checked: true, files: [], badInput: false },
+        { required: { propValue: true } },
+        true,
+      ],
+      [
+        "a required checkbox is not valid when unchecked",
+        { kind: "input:checkbox", value: "on", checked: false, files: [], badInput: false },
+        { required: { propValue: true } },
+        false,
+      ],
+      [
+        "a required file input is not valid without files",
+        { kind: "input:file", value: "", checked: false, files: [], badInput: false },
+        { required: { propValue: true } },
+        false,
+      ],
+      [
+        "a number with bad input passes required but not min",
+        { kind: "input:number", value: "", checked: false, files: [], badInput: true },
+        { required: { propValue: true }, min: { propValue: 1 } },
+        false,
+      ],
+      [
+        "a time is compared with its limits",
+        { kind: "input:time", value: "10:00", checked: false, files: [], badInput: false },
+        { min: { propValue: "09:00" }, max: { propValue: "18:00" } },
+        true,
+      ],
+    ])("%s", (_description, elementState, validations, isValid) => {
+      expect(new Validator({ elementState, validations }).isValid).toBe(isValid);
+    });
+
+    it.each<[rule: string, validations: ValidationsConfig, kind: ElementState["kind"]]>([
+      ["minLength", { minLength: { propValue: 3 } }, "input:checkbox"],
+      ["maxLength", { maxLength: { propValue: 3 } }, "input:number"],
+      ["pattern", { pattern: { propValue: "[a-z]+" } }, "input:file"],
+      ["min", { min: { propValue: 1 } }, "input:text"],
+      ["max", { max: { propValue: 1 } }, "select"],
+    ])("throws an error with the rule %s and the kind %s, which has no strategy", (rule, validations, kind) => {
+      const validator = new Validator({
+        elementState: { kind, value: "", checked: false, files: [], badInput: false },
+        validations,
+      });
+      expect(() => validator.errorsState).toThrow(rule);
+      expect(() => validator.errorsState).toThrow(kind);
+    });
+
+    it("throws an error when a rule does not support the kind", () => {
+      const validator = new Validator({
+        elementState: { kind: "input:checkbox", value: "on", checked: true, files: [], badInput: false },
+        validations: { minLength: { propValue: 3 } },
+      });
+      expect(() => validator.isValid).toThrow("input:checkbox");
+      expect(() => validator.errorsState).toThrow("input:checkbox");
+    });
+  });
+
+  describe("before the element mounts", () => {
+    it.each<[description: string, validations: ValidationsConfig]>([
+      ["there are no rules", {}],
+      ["required is true", { required: { propValue: true } }],
+      ["required is false", { required: { propValue: false } }],
+      ["there are several rules", { required: { propValue: true }, minLength: { propValue: 3 }, min: { propValue: 1 } }],
+      ["custom rejects everything", { custom: { propValue: () => false } }],
+    ])("isValid is undefined when %s", (_description, validations) => {
+      expect(new Validator({ elementState: unmounted, validations }).isValid).toBeUndefined();
+    });
+
+    it("does not call custom", () => {
+      const check = vi.fn(() => true);
+      new Validator({ elementState: unmounted, validations: { custom: { propValue: check } } }).errorsState;
+      expect(check).not.toHaveBeenCalled();
+    });
+
+    it("does not throw with rules that its kind could not support", () => {
+      const validator = new Validator({
+        elementState: unmounted,
+        validations: { minLength: { propValue: 3 }, min: { propValue: 1 } },
+      });
+      expect(validator.errorsState.minLength.isValid).toBeUndefined();
+    });
+
+    it("every rule is undefined, without type nor message", () => {
+      const { errorsState } = new Validator({
+        elementState: unmounted,
+        validations: {
+          required: { propValue: true, errorMessage: "Error" },
+          minLength: { propValue: 3, errorMessage: "Error" },
+          maxLength: { propValue: 3, errorMessage: "Error" },
+          pattern: { propValue: "[a-z]+", errorMessage: "Error" },
+          min: { propValue: 1, errorMessage: "Error" },
+          max: { propValue: 1, errorMessage: "Error" },
+          custom: { propValue: () => false, errorMessage: "Error" },
+        },
+      });
+      expect(errorsState).toEqual({
+        required: { isValid: undefined },
+        minLength: { isValid: undefined },
+        maxLength: { isValid: undefined },
+        pattern: { isValid: undefined },
+        min: { isValid: undefined },
+        max: { isValid: undefined },
+        custom: { isValid: undefined },
+      });
     });
   });
 
@@ -270,21 +320,19 @@ describe("Validator", () => {
       [
         rule: keyof ValidationRules,
         validations: ValidationsConfig,
-        rawValue: RawValue,
+        elementState: ElementState,
       ]
     >([
-      ["required", { required: { propValue: true, errorMessage: "Error" } }, "Nico"],
-      ["minLength", { minLength: { propValue: 3, errorMessage: "Error" } }, "abc"],
-      ["maxLength", { maxLength: { propValue: 3, errorMessage: "Error" } }, "abc"],
-      ["pattern", { pattern: { propValue: "[a-z]+", errorMessage: "Error" } }, "abc"],
-      ["min", { min: { propValue: "9", errorMessage: "Error" } }, "9"],
-      ["max", { max: { propValue: "10", errorMessage: "Error" } }, "10"],
-      ["custom", { custom: { propValue: () => true, errorMessage: "Error" } }, "Nico"],
-    ])("%s passes, without type nor message", (rule, validations, rawValue) => {
-      const { errorsState } = new Validator({ rawValue, validations });
-      expect(errorsState[rule].isValid).toBe(true);
-      expect(errorsState[rule].type).toBeUndefined();
-      expect(errorsState[rule].message).toBeUndefined();
+      ["required", { required: { propValue: true, errorMessage: "Error" } }, { kind: "input:text", value: "Nico", checked: false, files: [], badInput: false }],
+      ["minLength", { minLength: { propValue: 3, errorMessage: "Error" } }, { kind: "input:text", value: "abc", checked: false, files: [], badInput: false }],
+      ["maxLength", { maxLength: { propValue: 3, errorMessage: "Error" } }, { kind: "input:text", value: "abc", checked: false, files: [], badInput: false }],
+      ["pattern", { pattern: { propValue: "[a-z]+", errorMessage: "Error" } }, { kind: "input:text", value: "abc", checked: false, files: [], badInput: false }],
+      ["min", { min: { propValue: 9, errorMessage: "Error" } }, { kind: "input:number", value: "9", checked: false, files: [], badInput: false }],
+      ["max", { max: { propValue: 10, errorMessage: "Error" } }, { kind: "input:number", value: "10", checked: false, files: [], badInput: false }],
+      ["custom", { custom: { propValue: () => true, errorMessage: "Error" } }, { kind: "input:text", value: "Nico", checked: false, files: [], badInput: false }],
+    ])("%s passes, without type nor message", (rule, validations, elementState) => {
+      const { errorsState } = new Validator({ elementState, validations });
+      expect(errorsState[rule]).toEqual({ isValid: true });
     });
 
     it.each<
@@ -292,53 +340,49 @@ describe("Validator", () => {
         rule: keyof ValidationRules,
         type: ValidationType,
         validations: ValidationsConfig,
-        rawValue: RawValue,
+        elementState: ElementState,
       ]
     >([
-      ["required", "valueMissing", { required: { propValue: true, errorMessage: "Error" } }, ""],
-      ["minLength", "tooShort", { minLength: { propValue: 3, errorMessage: "Error" } }, "ab"],
-      ["maxLength", "tooLong", { maxLength: { propValue: 3, errorMessage: "Error" } }, "abcd"],
-      ["pattern", "patternMismatch", { pattern: { propValue: "[a-z]+", errorMessage: "Error" } }, "123"],
-      ["min", "rangeUnderflow", { min: { propValue: "9", errorMessage: "Error" } }, "8"],
-      ["max", "rangeOverflow", { max: { propValue: "10", errorMessage: "Error" } }, "11"],
-      ["custom", "customError", { custom: { propValue: () => false, errorMessage: "Error" } }, "Nico"],
-    ])(
-      "%s fails with type %s and its message",
-      (rule, type, validations, rawValue) => {
-        const { errorsState } = new Validator({ rawValue, validations });
-        expect(errorsState[rule].isValid).toBe(false);
-        expect(errorsState[rule].type).toBe(type);
-        expect(errorsState[rule].message).toBe("Error");
-      },
-    );
+      ["required", "valueMissing", { required: { propValue: true, errorMessage: "Error" } }, { kind: "input:text", value: "", checked: false, files: [], badInput: false }],
+      ["minLength", "tooShort", { minLength: { propValue: 3, errorMessage: "Error" } }, { kind: "input:text", value: "ab", checked: false, files: [], badInput: false }],
+      ["maxLength", "tooLong", { maxLength: { propValue: 3, errorMessage: "Error" } }, { kind: "input:text", value: "abcd", checked: false, files: [], badInput: false }],
+      ["pattern", "patternMismatch", { pattern: { propValue: "[a-z]+", errorMessage: "Error" } }, { kind: "input:text", value: "123", checked: false, files: [], badInput: false }],
+      ["min", "rangeUnderflow", { min: { propValue: 9, errorMessage: "Error" } }, { kind: "input:number", value: "8", checked: false, files: [], badInput: false }],
+      ["max", "rangeOverflow", { max: { propValue: 10, errorMessage: "Error" } }, { kind: "input:number", value: "11", checked: false, files: [], badInput: false }],
+      ["custom", "customError", { custom: { propValue: () => false, errorMessage: "Error" } }, { kind: "input:text", value: "Nico", checked: false, files: [], badInput: false }],
+    ])("%s fails with type %s and its message", (rule, type, validations, elementState) => {
+      const { errorsState } = new Validator({ elementState, validations });
+      expect(errorsState[rule]).toEqual({ isValid: false, type, message: "Error" });
+    });
 
     it("has no message when the failed rule does not configure it", () => {
       const { errorsState } = new Validator({
-        rawValue: "",
+        elementState: { kind: "input:text", value: "", checked: false, files: [], badInput: false },
         validations: { required: { propValue: true } },
       });
       expect(errorsState.required.isValid).toBe(false);
       expect(errorsState.required.message).toBeUndefined();
     });
 
-    it.each<[rule: keyof ValidationRules]>([
-      ["required"],
-      ["minLength"],
-      ["maxLength"],
-      ["pattern"],
-      ["min"],
-      ["max"],
-      ["custom"],
-    ])("%s is undefined when it is not configured", (rule) => {
-      const { errorsState } = new Validator({ rawValue: "", validations: {} });
-      expect(errorsState[rule].isValid).toBeUndefined();
-      expect(errorsState[rule].type).toBeUndefined();
-      expect(errorsState[rule].message).toBeUndefined();
+    it("is undefined for the rules that are not configured", () => {
+      const { errorsState } = new Validator({
+        elementState: { kind: "input:checkbox", value: "on", checked: false, files: [], badInput: false },
+        validations: {},
+      });
+      expect(errorsState).toEqual({
+        required: { isValid: undefined },
+        minLength: { isValid: undefined },
+        maxLength: { isValid: undefined },
+        pattern: { isValid: undefined },
+        min: { isValid: undefined },
+        max: { isValid: undefined },
+        custom: { isValid: undefined },
+      });
     });
 
     it("evaluates each rule independently", () => {
       const { errorsState } = new Validator({
-        rawValue: "ab",
+        elementState: { kind: "input:text", value: "ab", checked: false, files: [], badInput: false },
         validations: {
           required: { propValue: true },
           minLength: { propValue: 3 },
@@ -353,7 +397,7 @@ describe("Validator", () => {
 
     it("evaluates the other rules when the value is missing", () => {
       const { errorsState } = new Validator({
-        rawValue: "",
+        elementState: { kind: "input:text", value: "", checked: false, files: [], badInput: false },
         validations: {
           required: { propValue: true },
           minLength: { propValue: 3 },
@@ -364,26 +408,20 @@ describe("Validator", () => {
     });
   });
 
-  it("is independent of the validators of other values", () => {
-    const valid = new Validator({
-      rawValue: "Nico",
-      validations: { required: { propValue: true } },
-    });
-    const invalid = new Validator({
-      rawValue: "",
-      validations: { required: { propValue: true } },
-    });
-    expect(invalid.isValid).toBe(false);
-    expect(valid.isValid).toBe(true);
-  });
-
-  it("passes the raw value to custom without modifying it", () => {
+  it("passes the element state to custom without modifying it", () => {
     const check = vi.fn().mockReturnValue(true);
+    const elementState: ElementState = {
+      kind: "input:file",
+      value: "",
+      checked: false,
+      files: [],
+      badInput: false,
+    };
     const validator = new Validator({
-      rawValue: ["red", "blue"],
+      elementState,
       validations: { custom: { propValue: check } },
     });
     expect(validator.isValid).toBe(true);
-    expect(check).toHaveBeenCalledWith(["red", "blue"]);
+    expect(check).toHaveBeenCalledWith(elementState);
   });
 });
